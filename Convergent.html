@@ -260,6 +260,33 @@ body{display:flex;flex-direction:column}
 .sm-box{background:var(--surf);border:1px solid var(--bdr2);border-radius:14px;width:380px;max-width:94vw;padding:30px}
 .sm-box h3{font-size:17px;font-weight:600;color:var(--txt2);margin-bottom:20px}
 
+/* ── PASSPHRASE MODAL ── */
+#pp-ov{z-index:1200}
+#pp-box{background:var(--surf);border:1px solid var(--bdr2);border-radius:14px;width:440px;max-width:94vw;padding:28px}
+#pp-box h3{font-size:18px;font-weight:600;color:var(--txt2);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+#pp-box .pp-sub{font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.55}
+#pp-box .pp-sub code{background:var(--surf2);padding:1px 6px;border-radius:4px;font-family:var(--mono);font-size:12px;color:var(--acc)}
+#pp-box .pp-err{font-size:13px;color:var(--err);margin:4px 0 8px;min-height:18px;line-height:1.4}
+#pp-box .pp-actions{display:flex;gap:9px;justify-content:flex-end;margin-top:18px}
+#pp-box .pp-remember{display:flex;align-items:center;gap:8px;margin-top:4px;margin-bottom:4px;font-size:13px;color:var(--txt);cursor:pointer;user-select:none}
+#pp-box .pp-remember input{width:15px;height:15px;margin:0;accent-color:var(--acc)}
+#pp-box .pp-strength{font-size:11px;color:var(--muted);margin-top:5px;height:14px}
+#pp-box .pp-strength .ps-bar{display:inline-block;width:90px;height:4px;background:var(--surf2);border-radius:2px;margin-right:8px;vertical-align:middle;overflow:hidden}
+#pp-box .pp-strength .ps-fill{display:block;height:100%;transition:width .2s,background .2s}
+
+/* ── LOCKED-PENDING STATE ──
+   When a folder handle is known in IDB but the user hasn't entered the
+   passphrase yet, hide all chat content. The passphrase is the encryption
+   boundary, so without it nothing chat-related should be visible.
+   #chat-list uses visibility:hidden (not display:none) so it still occupies
+   its flex:1 space — that keeps Export/Import/Settings pinned to the bottom
+   of the sidebar instead of bunching up under the search button. */
+body.locked-pending #chat-list{visibility:hidden}
+body.locked-pending #project-view,
+body.locked-pending #empty,
+body.locked-pending #msgs > .mw,
+body.locked-pending #inp-area{display:none !important}
+
 /* ── FORMS ── */
 .field{margin-bottom:16px}
 .field>label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:7px;text-transform:uppercase;letter-spacing:.05em}
@@ -657,11 +684,34 @@ mark{background:rgba(167,139,250,.3);color:var(--txt2);border-radius:2px;padding
         <input type="text" id="su-path" placeholder="Choose a folder…" readonly style="flex:1">
         <button class="btn btn-g" id="su-browse" style="width:auto;padding:0 16px;white-space:nowrap">Browse…</button>
       </div>
-      <div class="fhint">Creates <code>index.json</code>, <code>chats/</code>, and rolling <code>backups/</code> inside. Files are <strong style="color:var(--ok)">AES-256 encrypted</strong>.</div>
+      <div class="fhint">Creates <code>meta.json</code>, <code>index.json</code>, <code>config.json</code>, <code>chats/</code>, and rolling <code>backups/</code> inside. Files are <strong style="color:var(--ok)">AES-256 encrypted</strong> with a key derived from a passphrase you'll set next.</div>
     </div>
     <div style="display:flex;gap:9px;margin-top:22px;justify-content:flex-end">
       <button class="btn btn-g" id="su-skip">Skip</button>
       <button class="btn btn-p" id="su-save">Save &amp; Continue</button>
+    </div>
+  </div>
+</div>
+
+<!-- PASSPHRASE MODAL -->
+<div class="ov" id="pp-ov">
+  <div id="pp-box">
+    <h3><span id="pp-icon">🔐</span> <span id="pp-title">Enter Passphrase</span></h3>
+    <div class="pp-sub" id="pp-sub">Your data folder is encrypted. Enter your passphrase to unlock it.</div>
+    <div class="field" style="margin-bottom:10px">
+      <label id="pp-lbl-1">Passphrase</label>
+      <input type="password" id="pp-inp" placeholder="Enter passphrase" autocomplete="current-password">
+      <div class="pp-strength" id="pp-strength" style="display:none"><span class="ps-bar"><span class="ps-fill" id="ps-fill"></span></span><span id="ps-txt"></span></div>
+    </div>
+    <div class="field" id="pp-confirm-wrap" style="display:none;margin-bottom:10px">
+      <label>Confirm passphrase</label>
+      <input type="password" id="pp-inp2" placeholder="Re-enter to confirm" autocomplete="new-password">
+    </div>
+    <label class="pp-remember"><input type="checkbox" id="pp-remember">Remember on this browser <span style="color:var(--muted);font-size:11px">(stored as non-extractable key in IndexedDB)</span></label>
+    <div class="pp-err" id="pp-err"></div>
+    <div class="pp-actions">
+      <button class="btn btn-g" id="pp-cancel">Cancel</button>
+      <button class="btn btn-p" id="pp-ok">Unlock</button>
     </div>
   </div>
 </div>
@@ -721,8 +771,8 @@ mark{background:rgba(167,139,250,.3);color:var(--txt2);border-radius:2px;padding
 
       <div class="tpanel" id="tp-data">
         <div class="enc-note">
-          <strong>🔐 AES-256-GCM Encryption</strong>
-          A unique key is generated once for this browser and stored in IndexedDB. Your data file on disk is fully encrypted — API keys, chats, and settings are unreadable to anyone without this browser. Copying the file elsewhere exposes nothing.
+          <strong>🔐 AES-256-GCM · Passphrase-derived key (PBKDF2-SHA256, 210k iterations)</strong>
+          Your encryption key is derived from a passphrase you choose. The passphrase is never stored on disk — only a random salt and a short verifier go into <code>meta.json</code>. Copy the folder to another machine or browser, enter the same passphrase, and your data decrypts. Clear site data? Just re-enter the passphrase.
         </div>
         <div class="field">
           <label>Data Folder</label>
@@ -730,9 +780,11 @@ mark{background:rgba(167,139,250,.3);color:var(--txt2);border-radius:2px;padding
             <input type="text" id="c-filepath" readonly placeholder="No folder linked" style="flex:1">
             <button class="btn btn-g" id="c-browse" style="width:auto;padding:0 16px;white-space:nowrap">Browse…</button>
           </div>
-          <div class="fhint">Sharded storage: <code>index.json</code> + <code>chats/{id}.json</code>. Rolling backups in <code>backups/</code>.</div>
+          <div class="fhint">Sharded storage: <code>meta.json</code> + <code>index.json</code> + <code>config.json</code> + <code>chats/{id}.json</code>. Rolling backups in <code>backups/</code> (same base folder, no tmp/rename).</div>
         </div>
         <div class="field"><button class="btn btn-g" id="save-now-btn" style="width:100%">Save Now (force full write)</button></div>
+        <div class="field"><button class="btn btn-g" id="change-pp-btn" style="width:100%">Change Passphrase…</button><div class="fhint">Re-encrypts all files with a new key derived from a new passphrase.</div></div>
+        <div class="field"><button class="btn btn-g" id="forget-pp-btn" style="width:100%">Forget Cached Passphrase</button><div class="fhint">Removes the cached key from this browser's IndexedDB. You'll be prompted on next open.</div></div>
         <div class="field"><button class="btn btn-g" id="export-plain-btn" style="width:100%">Export Unencrypted Backup (download)</button></div>
         <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--bdr)">
           <div class="field"><button class="btn btn-d" id="clear-all-btn" style="width:100%">Delete All Chats</button></div>
@@ -864,7 +916,7 @@ mark{background:rgba(167,139,250,.3);color:var(--txt2);border-radius:2px;padding
 const DCFG={timeout:120,temp:.7,topp:1,maxTokens:4096,ctxMsgs:40,freq:0,pres:0,stream:true,showUsage:true,stop:[],systemPrompt:'',synthesize:false,renderMarkdown:false};
 const DWEB={enabled:false,timeRange:'hour',providers:{google:{enabled:false,apiKey:'',cx:''},bing:{enabled:false,apiKey:''},duckduckgo:{enabled:false},searxng:{enabled:false,url:''},brave:{enabled:false,apiKey:''},tavily:{enabled:false,apiKey:''},custom:{enabled:false,url:'',apiKey:''}}};
 const S={cfg:{...DCFG},endpoints:[],models:[],folders:{},chats:{},activeChat:null,activeProject:null,projectsExpanded:true,projectsShowAll:false,recentChatsExpanded:true,
-         selModels:[],streaming:false,aborts:{},fileHandle:null,dirHandle:null,sbVisible:true,webSearch:{...DWEB}};
+         selModels:[],streaming:false,aborts:{},dirHandle:null,sbVisible:true,webSearch:{...DWEB}};
 
 // ═══════════════════════════════════════════
 // UTILS
@@ -1035,43 +1087,375 @@ const iGet=(k)=>idb('readonly',(s,r,j)=>{const q=s.get(k);q.onsuccess=()=>r(q.re
 const iDel=(k)=>idb('readwrite',(s,r,j)=>{const q=s.delete(k);q.onsuccess=r;q.onerror=()=>j(q.error);});
 
 // ═══════════════════════════════════════════
-// ENCRYPTION  (AES-256-GCM)
+// ENCRYPTION  (AES-256-GCM, key derived from passphrase via PBKDF2-SHA256)
 // ═══════════════════════════════════════════
-let ENC_KEY=null;
+// Model:
+//   - Salt (32 bytes random) is stored PLAINTEXT in meta.json. Salt is public.
+//   - Verifier (fixed token encrypted with derived key) is stored in meta.json.
+//     On open, we derive a key from the user passphrase + salt, then decrypt the
+//     verifier to confirm the passphrase was correct.
+//   - Derived key is a NON-EXTRACTABLE AES-GCM CryptoKey. We optionally cache the
+//     CryptoKey itself in IndexedDB (via structured clone, non-extractable). If
+//     the cache is cleared or the user moves to another browser/machine, they
+//     simply re-enter the passphrase.
+//   - The passphrase is NEVER persisted anywhere. Only the salt, the verifier,
+//     and (optionally) the derived non-extractable CryptoKey are stored.
+const KDF_ITERATIONS = 210000;
+const KDF_HASH = 'SHA-256';
+const VERIFIER_TOKEN = 'Convergent-v4-verify';
+
+let ENC_KEY = null;        // Non-extractable AES-GCM CryptoKey
+let ENC_SALT_B64 = null;   // base64 of current salt (tag for cache lookup)
+
 const b64=(buf)=>{const a=new Uint8Array(buf);let s='';for(let i=0;i<a.length;i++)s+=String.fromCharCode(a[i]);return btoa(s);};
 const unb64=(s)=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 
-async function getOrCreateEncKey(){
+async function deriveKeyFromPassphrase(passphrase, saltBytes){
+  const baseKey = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(passphrase),
+    {name:'PBKDF2'},
+    false,
+    ['deriveKey']
+  );
+  return await crypto.subtle.deriveKey(
+    {name:'PBKDF2', salt: saltBytes, iterations: KDF_ITERATIONS, hash: KDF_HASH},
+    baseKey,
+    {name:'AES-GCM', length:256},
+    false,                        // non-extractable
+    ['encrypt','decrypt']
+  );
+}
+
+async function makeVerifier(key){
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt(
+    {name:'AES-GCM', iv},
+    key,
+    new TextEncoder().encode(VERIFIER_TOKEN)
+  );
+  return {iv:b64(iv), ct:b64(ct)};
+}
+async function checkVerifier(key, verifier){
+  if(!verifier || !verifier.iv || !verifier.ct) return false;
   try{
-    let raw=await iGet('ek');
-    if(!raw){
-      const key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},true,['encrypt','decrypt']);
-      raw=await crypto.subtle.exportKey('raw',key);
-      await iSet('ek',raw);
-    }
-    ENC_KEY=await crypto.subtle.importKey('raw',raw,{name:'AES-GCM'},false,['encrypt','decrypt']);
-  }catch(e){
-    ENC_KEY=null;
-    console.warn('Crypto unavailable:',e.message);
-  }
+    const pt = await crypto.subtle.decrypt(
+      {name:'AES-GCM', iv:unb64(verifier.iv)},
+      key,
+      unb64(verifier.ct)
+    );
+    return new TextDecoder().decode(pt) === VERIFIER_TOKEN;
+  }catch{ return false; }
+}
+
+// Cached CryptoKey management (tagged with the folder salt so we don't misuse
+// a cached key against a different folder)
+async function loadCachedKey(saltB64){
+  try{
+    const entry = await iGet('ck');
+    if(!entry || entry.saltB64 !== saltB64 || !entry.key) return null;
+    return entry.key;
+  }catch{ return null; }
+}
+async function saveCachedKey(key, saltB64){
+  try{ await iSet('ck', {key, saltB64, at:Date.now()}); }
+  catch(e){ console.warn('saveCachedKey:', e); }
+}
+async function clearCachedKey(){
+  try{ await iDel('ck'); }catch{}
+  // Also remove any stale legacy random key from pre-v4 builds
+  try{ await iDel('ek'); }catch{}
 }
 
 async function encryptData(obj){
-  const json=JSON.stringify(obj);
-  if(!ENC_KEY)return json;
-  const iv=crypto.getRandomValues(new Uint8Array(12));
-  const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},ENC_KEY,new TextEncoder().encode(json));
-  return JSON.stringify({v:2,iv:b64(iv),ct:b64(ct)});
+  const json = JSON.stringify(obj);
+  if(!ENC_KEY) throw new Error('No encryption key — passphrase required');
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt(
+    {name:'AES-GCM', iv},
+    ENC_KEY,
+    new TextEncoder().encode(json)
+  );
+  return JSON.stringify({v:4, iv:b64(iv), ct:b64(ct)});
 }
 
 async function decryptData(raw){
-  let p;try{p=JSON.parse(raw);}catch{return null;}
-  if(!p.v||p.v<2)return p;
-  if(!ENC_KEY)return null;
+  let p;
+  try{ p = JSON.parse(raw); }catch{ return null; }
+  // v:undefined / v:1 → plaintext payload (e.g. plain unencrypted backup export)
+  if(!p.v || p.v<2) return p;
+  if(!ENC_KEY) return null;
   try{
-    const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(p.iv)},ENC_KEY,unb64(p.ct));
+    const pt = await crypto.subtle.decrypt(
+      {name:'AES-GCM', iv:unb64(p.iv)},
+      ENC_KEY,
+      unb64(p.ct)
+    );
     return JSON.parse(new TextDecoder().decode(pt));
-  }catch(e){console.error('Decrypt:',e);return null;}
+  }catch(e){
+    console.error('Decrypt failed:', e);
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════
+// PASSPHRASE MODAL (prompt + create + change)
+// ═══════════════════════════════════════════
+// Usage: await promptPassphrase({mode:'unlock'|'create'|'change', folderName, lastError})
+// Resolves to {passphrase, remember} or null (if user cancelled).
+let _ppResolve = null;
+function promptPassphrase(opts={}){
+  const mode = opts.mode || 'unlock';
+  const ov  = $('pp-ov');
+  const box = $('pp-box');
+  const titleEl = $('pp-title');
+  const subEl   = $('pp-sub');
+  const iconEl  = $('pp-icon');
+  const okBtn   = $('pp-ok');
+  const cancel  = $('pp-cancel');
+  const inp     = $('pp-inp');
+  const inp2    = $('pp-inp2');
+  const confW   = $('pp-confirm-wrap');
+  const strW    = $('pp-strength');
+  const errEl   = $('pp-err');
+  const remChk  = $('pp-remember');
+  const lbl1    = $('pp-lbl-1');
+
+  errEl.textContent = opts.lastError || '';
+  inp.value = ''; inp2.value = '';
+  remChk.checked = false;
+
+  if(mode==='unlock'){
+    iconEl.textContent = '🔓';
+    titleEl.textContent = 'Unlock Data Folder';
+    subEl.innerHTML = `Enter the passphrase for <code>${esc(opts.folderName||'folder')}</code>. The passphrase is never stored — only the derived key is cached (non-extractable) if you opt in.`;
+    lbl1.textContent = 'Passphrase';
+    confW.style.display = 'none';
+    strW.style.display = 'none';
+    okBtn.textContent = 'Unlock';
+    inp.autocomplete = 'current-password';
+  }else if(mode==='create'){
+    iconEl.textContent = '✨';
+    titleEl.textContent = 'Set a New Passphrase';
+    subEl.innerHTML = `This folder (<code>${esc(opts.folderName||'folder')}</code>) has no data yet. Pick a strong passphrase — you'll enter it on any browser or machine that opens this folder. <strong style="color:var(--warn)">There is no recovery if you forget it.</strong>`;
+    lbl1.textContent = 'New passphrase';
+    confW.style.display = '';
+    strW.style.display = '';
+    okBtn.textContent = 'Create';
+    inp.autocomplete = 'new-password';
+  }else if(mode==='change'){
+    iconEl.textContent = '🔄';
+    titleEl.textContent = 'Change Passphrase';
+    subEl.innerHTML = `Enter a new passphrase. All files will be re-encrypted with the new key. Old backups remain encrypted with the previous passphrase and will be overwritten on their next rotation.`;
+    lbl1.textContent = 'New passphrase';
+    confW.style.display = '';
+    strW.style.display = '';
+    okBtn.textContent = 'Change';
+    inp.autocomplete = 'new-password';
+  }
+
+  ov.classList.add('open');
+  setTimeout(()=>inp.focus(), 80);
+
+  return new Promise(resolve=>{
+    _ppResolve = resolve;
+    // Strength meter (create / change only)
+    const fill = $('ps-fill'), txt = $('ps-txt');
+    function updateStrength(){
+      if(confW.style.display==='none'){ strW.style.display='none'; return; }
+      strW.style.display = '';
+      const v = inp.value;
+      const s = scorePassphrase(v);
+      fill.style.width = Math.max(4,s.pct) + '%';
+      fill.style.background = s.color;
+      txt.textContent = s.label;
+      txt.style.color = s.color;
+    }
+    inp.oninput = updateStrength;
+    updateStrength();
+  });
+}
+function scorePassphrase(v){
+  if(!v) return {pct:0, label:'', color:'var(--muted)'};
+  let score = 0;
+  if(v.length>=8) score+=1;
+  if(v.length>=12) score+=1;
+  if(v.length>=16) score+=1;
+  if(/[a-z]/.test(v)&&/[A-Z]/.test(v)) score+=1;
+  if(/\d/.test(v)) score+=1;
+  if(/[^A-Za-z0-9]/.test(v)) score+=1;
+  const labels=['very weak','weak','okay','good','strong','very strong'];
+  const colors=['#f87171','#fb923c','#fbbf24','#34d399','#4ade80','#a78bfa'];
+  const idx = Math.min(score, labels.length-1);
+  return {pct:(idx+1)/labels.length*100, label:labels[idx], color:colors[idx]};
+}
+function closePassphrase(result){
+  $('pp-ov').classList.remove('open');
+  const r = _ppResolve; _ppResolve = null;
+  if(r) r(result);
+}
+// Wire modal buttons (listeners installed once, handlers dispatch via _ppResolve)
+document.addEventListener('DOMContentLoaded', ()=>{}); // placeholder; we wire below in init area too
+// Immediate listeners (this script runs after DOM is parsed because the <script> is at the end)
+(function wirePpModal(){
+  const ov=$('pp-ov'); if(!ov) return;
+  $('pp-ok').addEventListener('click', async ()=>{
+    const inp=$('pp-inp'), inp2=$('pp-inp2'), errEl=$('pp-err');
+    const confW=$('pp-confirm-wrap');
+    const pw = inp.value;
+    if(!pw || pw.length<4){ errEl.textContent='Passphrase must be at least 4 characters.'; return; }
+    if(confW.style.display!=='none' && pw!==inp2.value){
+      errEl.textContent='Passphrases do not match.'; return;
+    }
+    const remember = $('pp-remember').checked;
+    closePassphrase({passphrase:pw, remember});
+  });
+  $('pp-cancel').addEventListener('click', ()=>closePassphrase(null));
+  $('pp-inp').addEventListener('keydown', e=>{
+    if(e.key==='Enter'){ e.preventDefault();
+      const confW=$('pp-confirm-wrap');
+      if(confW.style.display!=='none'){ $('pp-inp2').focus(); }
+      else{ $('pp-ok').click(); }
+    }
+    if(e.key==='Escape'){ closePassphrase(null); }
+  });
+  $('pp-inp2').addEventListener('keydown', e=>{
+    if(e.key==='Enter'){ e.preventDefault(); $('pp-ok').click(); }
+    if(e.key==='Escape'){ closePassphrase(null); }
+  });
+  // Clicking outside the box dismisses (treated as cancel)
+  ov.addEventListener('click', e=>{ if(e.target===ov) closePassphrase(null); });
+})();
+
+// Unlock (or initialize) a freshly picked directory handle.
+// Reads meta.json. If it has v4 salt+verifier → prompt to unlock. If empty → prompt to create.
+// Returns true on success, false if the user cancelled or something failed.
+async function unlockOrInitFolder(h){
+  // Probe meta.json (plaintext, tiny)
+  let metaRaw = null;
+  try{ metaRaw = await readFrom(h, 'meta.json'); }catch{}
+  let meta = null;
+  if(metaRaw){
+    try{ meta = JSON.parse(metaRaw); }catch{ meta = null; }
+  }
+
+  if(meta && meta.v>=4 && meta.salt && meta.verifier){
+    // Existing v4 folder
+    const saltBytes = unb64(meta.salt);
+    ENC_SALT_B64 = meta.salt;
+
+    // Try cached key first
+    try{
+      const cached = await loadCachedKey(meta.salt);
+      if(cached){
+        if(await checkVerifier(cached, meta.verifier)){
+          ENC_KEY = cached;
+          return true;
+        }
+        // Stale cache — clear it
+        await clearCachedKey();
+      }
+    }catch(e){ console.warn('loadCachedKey failed:', e); }
+
+    // Prompt loop
+    let lastError = '';
+    for(;;){
+      const res = await promptPassphrase({mode:'unlock', folderName:h.name, lastError});
+      if(!res) return false;
+      const key = await deriveKeyFromPassphrase(res.passphrase, saltBytes);
+      if(await checkVerifier(key, meta.verifier)){
+        ENC_KEY = key;
+        if(res.remember) await saveCachedKey(key, meta.salt);
+        else await clearCachedKey();
+        return true;
+      }
+      lastError = 'Wrong passphrase — try again.';
+    }
+  }
+
+  // Fresh folder (no meta.json, or legacy/unknown format)
+  if(meta && meta.v && meta.v<4){
+    // Legacy v1/v2/v3 folder — since the user explicitly chose "start fresh, no
+    // migration", we refuse rather than silently re-encrypting unreadable data.
+    const cont = confirm(
+      'This folder contains data from an older Convergentversion (pre-passphrase). ' +
+      'Automatic migration is not supported. Click OK to wipe it and start fresh ' +
+      'with a new passphrase, or Cancel to pick a different folder.'
+    );
+    if(!cont) return false;
+    // wipe old files we recognize; leave unknown files alone
+    try{
+      for(const name of ['meta.json','index.json','config.json','chats.json']){
+        await deleteFrom(h, name);
+      }
+      try{
+        const chatsDir = await subDir(h, 'chats');
+        for(const n of await listDir(chatsDir)) await deleteFrom(chatsDir, n);
+      }catch{}
+      try{
+        const backupsDir = await subDir(h, 'backups');
+        for(const n of await listDir(backupsDir)) await deleteFrom(backupsDir, n);
+      }catch{}
+    }catch(e){ console.warn('legacy wipe partial:', e); }
+  }
+
+  // Create flow
+  const res = await promptPassphrase({mode:'create', folderName:h.name});
+  if(!res) return false;
+  const saltBytes = crypto.getRandomValues(new Uint8Array(32));
+  const saltB64 = b64(saltBytes);
+  const key = await deriveKeyFromPassphrase(res.passphrase, saltBytes);
+  ENC_KEY = key;
+  ENC_SALT_B64 = saltB64;
+  const verifier = await makeVerifier(key);
+  const newMeta = {
+    v:4, app:'Convergent',
+    kdf:'PBKDF2-SHA256',
+    iterations:KDF_ITERATIONS,
+    salt:saltB64,
+    verifier,
+    createdAt:Date.now()
+  };
+  await writeTo(h, 'meta.json', JSON.stringify(newMeta,null,2));
+  if(res.remember) await saveCachedKey(key, saltB64);
+  else await clearCachedKey();
+  S._metaWritten = true;
+  return true;
+}
+
+// Change passphrase: derive a new key, re-encrypt all files with it, update meta.json
+async function changePassphraseFlow(){
+  if(!S.dirHandle){ setStatus('err','No folder linked'); return; }
+  if(!ENC_KEY){ setStatus('err','No active key to re-encrypt from'); return; }
+  const res = await promptPassphrase({mode:'change', folderName:S.dirHandle.name});
+  if(!res) return;
+  try{
+    const saltBytes = crypto.getRandomValues(new Uint8Array(32));
+    const saltB64 = b64(saltBytes);
+    const newKey = await deriveKeyFromPassphrase(res.passphrase, saltBytes);
+    // Swap keys, force a full write
+    ENC_KEY = newKey;
+    ENC_SALT_B64 = saltB64;
+    const verifier = await makeVerifier(newKey);
+    const newMeta = {
+      v:4, app:'Convergent',
+      kdf:'PBKDF2-SHA256',
+      iterations:KDF_ITERATIONS,
+      salt:saltB64,
+      verifier,
+      createdAt:Date.now(),
+      rotatedAt:Date.now()
+    };
+    await writeTo(S.dirHandle, 'meta.json', JSON.stringify(newMeta,null,2));
+    markAllDirty();
+    await writeDir({force:true});
+    if(res.remember) await saveCachedKey(newKey, saltB64);
+    else await clearCachedKey();
+    setStatus('ok','Passphrase changed — all files re-encrypted');
+  }catch(e){
+    setStatus('err','Change passphrase failed: '+e.message);
+    console.error(e);
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -1082,7 +1466,7 @@ function snapshot(){
   return{cfg:S.cfg,endpoints:S.endpoints,folders:S.folders,chats:S.chats,
          activeChat:S.activeChat,selModels:S.selModels,sbVisible:S.sbVisible,webSearch:S.webSearch,projectsExpanded:S.projectsExpanded,recentChatsExpanded:S.recentChatsExpanded};
 }
-// Index-only snapshot (small; rewritten often). Chat metadata only — message bodies live in per-chat files.
+// Index — chat metadata only. Rewritten whenever any chat changes (small file).
 function indexSnapshot(){
   const meta={};
   Object.entries(S.chats).forEach(([id,c])=>{
@@ -1090,9 +1474,19 @@ function indexSnapshot(){
               // denormalized count for sidebar without loading every chat
               msgCount:(c.messages||[]).length};
   });
-  return{v:3,cfg:S.cfg,endpoints:S.endpoints,folders:S.folders,chatMeta:meta,
-         activeChat:S.activeChat,selModels:S.selModels,sbVisible:S.sbVisible,webSearch:S.webSearch,
-         projectsExpanded:S.projectsExpanded,recentChatsExpanded:S.recentChatsExpanded};
+  return{v:4,chatMeta:meta,activeChat:S.activeChat};
+}
+// Config — settings. Rewritten whenever the user changes settings (rare).
+function configSnapshot(){
+  return{v:4,
+         cfg:S.cfg,
+         endpoints:S.endpoints,
+         folders:S.folders,
+         selModels:S.selModels,
+         sbVisible:S.sbVisible,
+         projectsExpanded:S.projectsExpanded,
+         recentChatsExpanded:S.recentChatsExpanded,
+         webSearch:S.webSearch};
 }
 // Per-chat snapshot — the heavy payload
 function chatSnapshot(id){
@@ -1115,30 +1509,50 @@ function applySnap(d){
   if(typeof d.recentChatsExpanded==='boolean')S.recentChatsExpanded=d.recentChatsExpanded;
   if(d.webSearch)S.webSearch={...DWEB,...d.webSearch,providers:{...DWEB.providers,...(d.webSearch.providers||{}),brave:{...DWEB.providers.brave,...(d.webSearch.providers?.brave||{})},tavily:{...DWEB.providers.tavily,...(d.webSearch.providers?.tavily||{})}}};
 }
+// Apply a config.json payload (no chats in it)
+function applyConfig(c){
+  if(!c)return;
+  if(c.cfg)S.cfg={...DCFG,...c.cfg};
+  if(c.endpoints)S.endpoints=c.endpoints;
+  if(c.folders)S.folders=c.folders;
+  if(c.selModels)S.selModels=c.selModels;
+  if(typeof c.sbVisible==='boolean')S.sbVisible=c.sbVisible;
+  if(typeof c.projectsExpanded==='boolean')S.projectsExpanded=c.projectsExpanded;
+  if(typeof c.recentChatsExpanded==='boolean')S.recentChatsExpanded=c.recentChatsExpanded;
+  if(c.webSearch)S.webSearch={...DWEB,...c.webSearch,providers:{...DWEB.providers,...(c.webSearch.providers||{}),brave:{...DWEB.providers.brave,...(c.webSearch.providers?.brave||{})},tavily:{...DWEB.providers.tavily,...(c.webSearch.providers?.tavily||{})}}};
+}
 
 // ═══════════════════════════════════════════
 // DIRECTORY-BASED SHARDED STORAGE
 // ═══════════════════════════════════════════
 // Layout inside the user-picked folder:
-//   index.json                     — metadata, small, rewritten often
-//   chats/{chatId}.json            — one file per chat, rewritten only when that chat changes
+//   meta.json                      — PLAINTEXT: schema version + salt + passphrase verifier
+//   index.json                     — ENCRYPTED: chat metadata list (rewritten on any chat change)
+//   config.json                    — ENCRYPTED: settings (cfg/endpoints/folders/webSearch/…)
+//   chats/{chatId}.json            — ENCRYPTED: one file per chat, rewritten only when that chat changes
 //   backups/index.{ts}.json        — rolling backups of index (keep last INDEX_BACKUPS)
+//   backups/config.{ts}.json       — rolling backups of config (keep last CONFIG_BACKUPS)
 //   backups/chat-{id}.{ts}.json    — rolling backups per chat (keep last CHAT_BACKUPS_EACH)
-//   meta.json                      — schema version marker
-const SCHEMA_VERSION=3;
-const INDEX_BACKUPS=5;        // how many historical index snapshots to keep
+// ATOMIC WRITES: we use the File System Access API's createWritable() which commits on close().
+// We DO NOT implement any tmp-file + rename pattern in our own code — each file is opened and
+// written once, in place, inside the base folder. Backups are rolled into the same base folder's
+// `backups/` subdirectory before each overwrite (snapshot-before-write).
+const SCHEMA_VERSION=4;
+const INDEX_BACKUPS=5;        // rolling index snapshots (user asked for 3-5)
+const CONFIG_BACKUPS=5;       // rolling config snapshots
 const CHAT_BACKUPS_EACH=3;    // per chat
 const BACKUP_EVERY_MS=5*60*1000; // only create backups at most this often per file
 
 // Dirty tracking — what needs writing next flush
-const Dirty={index:false,chats:new Set(),deleted:new Set()};
+const Dirty={index:false,config:false,chats:new Set(),deleted:new Set()};
 function markIndexDirty(){Dirty.index=true;}
+function markConfigDirty(){Dirty.config=true;}
 function markChatDirty(id){if(id){Dirty.chats.add(id);Dirty.index=true;}}
 function markChatDeleted(id){if(id){Dirty.deleted.add(id);Dirty.chats.delete(id);Dirty.index=true;}}
-function markAllDirty(){Dirty.index=true;Object.keys(S.chats).forEach(id=>Dirty.chats.add(id));}
+function markAllDirty(){Dirty.index=true;Dirty.config=true;Object.keys(S.chats).forEach(id=>Dirty.chats.add(id));}
 
 // Last-backup-time cache (avoids writing a backup on every save)
-const lastBackupTs={index:0,chats:{}};
+const lastBackupTs={index:0,config:0,chats:{}};
 
 async function getPerm(h){try{return await h.queryPermission({mode:'readwrite'});}catch{return 'denied';}}
 async function reqPerm(h){try{return await h.requestPermission({mode:'readwrite'})==='granted';}catch{return false;}}
@@ -1181,19 +1595,17 @@ async function prune(dir,prefix,keep){
 }
 
 // Write full state to directory (respects dirty flags)
+// This function NEVER writes to a temp directory or uses rename/move.
+// It overwrites files in place via the FSA createWritable() atomic primitive,
+// and rolls old versions into <base>/backups/ before overwriting.
 async function writeDir(opts={}){
   const root=S.dirHandle;if(!root)return;
+  if(!ENC_KEY){ /* no key yet — do not write garbage */ return; }
   const force=!!opts.force;
   try{
     const now=Date.now();
     const backupsDir=await subDir(root,'backups');
     const chatsDir=await subDir(root,'chats');
-
-    // meta.json once
-    if(force||!S._metaWritten){
-      await writeTo(root,'meta.json',JSON.stringify({v:SCHEMA_VERSION,createdAt:now},null,2));
-      S._metaWritten=true;
-    }
 
     // Per-chat writes
     const chatIds=force?Object.keys(S.chats):Array.from(Dirty.chats);
@@ -1202,7 +1614,7 @@ async function writeDir(opts={}){
       const snap=chatSnapshot(id);
       if(!snap)continue;
       const payload=await encryptData(snap);
-      // rolling backup (throttled)
+      // rolling backup (throttled) — snapshot the PREVIOUS on-disk bytes before overwriting
       if(now-(lastBackupTs.chats[id]||0)>BACKUP_EVERY_MS){
         const existing=await readFrom(chatsDir,id+'.json');
         if(existing){
@@ -1221,7 +1633,22 @@ async function writeDir(opts={}){
     }
     Dirty.deleted.clear();
 
-    // Index (meta/config) write — last so sidebar/metadata never points at missing chat files
+    // Config (settings) write — rewritten only when dirty or forced
+    if(force||Dirty.config){
+      const cfgPayload=await encryptData(configSnapshot());
+      if(now-lastBackupTs.config>BACKUP_EVERY_MS){
+        const existing=await readFrom(root,'config.json');
+        if(existing){
+          await writeTo(backupsDir,`config.${now}.json`,existing);
+          await prune(backupsDir,'config.',CONFIG_BACKUPS);
+          lastBackupTs.config=now;
+        }
+      }
+      await writeTo(root,'config.json',cfgPayload);
+      Dirty.config=false;
+    }
+
+    // Index write — last so metadata never references chat files that don't exist yet
     if(force||Dirty.index){
       const idxPayload=await encryptData(indexSnapshot());
       if(now-lastBackupTs.index>BACKUP_EVERY_MS){
@@ -1238,51 +1665,46 @@ async function writeDir(opts={}){
   }catch(e){setStatus('err','Write failed: '+e.message);console.error('writeDir',e);}
 }
 
-// Try to recover a chat from its newest backup
-async function recoverChat(id){
-  const root=S.dirHandle;if(!root)return null;
-  try{
-    const backupsDir=await subDir(root,'backups');
-    const files=(await listDir(backupsDir)).filter(n=>n.startsWith(`chat-${id}.`)).sort().reverse();
-    for(const name of files){
-      const raw=await readFrom(backupsDir,name);
-      if(!raw)continue;
-      const d=await decryptData(raw);
-      if(d&&d.id===id){console.warn('Recovered chat from backup:',name);return d;}
-    }
-  }catch(e){console.warn('recoverChat',e);}
-  return null;
-}
-
-// Read full state from directory. Returns true if anything loaded.
+// Read full state from directory. Returns true if anything loaded (or folder is empty and ready).
 async function readDir(h){
   S.dirHandle=h;
   try{
-    // Legacy single-file detection: if the "dirHandle" is actually a file (old handle), migrate
-    if(h.kind==='file')return await migrateLegacy(h);
+    // Legacy single-file handle (pre-directory): refuse, user opted for fresh start
+    if(h.kind==='file'){
+      setStatus('err','Legacy file handle detected — please pick a folder instead');
+      return false;
+    }
 
-    // Read index
+    // ── CONFIG ────────────────────────────────────────────────
+    const cfgRaw=await readFrom(h,'config.json');
+    if(cfgRaw){
+      const c=await decryptData(cfgRaw);
+      if(c===null){
+        // decryption failed (wrong key) — try restoring from newest backup
+        const recovered=await recoverConfig();
+        if(recovered){applyConfig(recovered);setStatus('warn','config recovered from backup');}
+        else{setStatus('err','Could not decrypt config.json');return false;}
+      }else{
+        applyConfig(c);
+      }
+    }
+
+    // ── INDEX ─────────────────────────────────────────────────
     const idxRaw=await readFrom(h,'index.json');
     if(!idxRaw){
-      // Nothing there yet — fresh folder. Not an error.
+      // Fresh folder — nothing to load is fine
       return true;
     }
-    const idx=await decryptData(idxRaw);
-    if(!idx){setStatus('err','Could not decrypt index.json');return false;}
+    let idx=await decryptData(idxRaw);
+    if(idx===null){
+      // try backup
+      const recovered=await recoverIndex();
+      if(!recovered){setStatus('err','Could not decrypt index.json');return false;}
+      idx=recovered; setStatus('warn','index recovered from backup');
+    }
 
-    // Apply config/meta (v3 format) or legacy full snapshot (older)
-    if(idx.v===3&&idx.chatMeta){
-      // new sharded format
-      if(idx.cfg)S.cfg={...DCFG,...idx.cfg};
-      if(idx.endpoints)S.endpoints=idx.endpoints;
-      if(idx.folders)S.folders=idx.folders;
-      if(idx.selModels)S.selModels=idx.selModels;
-      if(typeof idx.sbVisible==='boolean')S.sbVisible=idx.sbVisible;
-      if(typeof idx.projectsExpanded==='boolean')S.projectsExpanded=idx.projectsExpanded;
-      if(typeof idx.recentChatsExpanded==='boolean')S.recentChatsExpanded=idx.recentChatsExpanded;
-      if(idx.webSearch)S.webSearch={...DWEB,...idx.webSearch,providers:{...DWEB.providers,...(idx.webSearch.providers||{}),brave:{...DWEB.providers.brave,...(idx.webSearch.providers?.brave||{})},tavily:{...DWEB.providers.tavily,...(idx.webSearch.providers?.tavily||{})}}};
-
-      // Load all per-chat files
+    if(idx.v>=4 && idx.chatMeta){
+      // v4 sharded format — load each chat
       S.chats={};
       const chatsDir=await subDir(h,'chats');
       for(const id of Object.keys(idx.chatMeta||{})){
@@ -1300,8 +1722,13 @@ async function readDir(h){
         }
       }
       if(idx.activeChat&&S.chats[idx.activeChat])S.activeChat=idx.activeChat;
+    }else if(idx.v===3 && idx.chatMeta){
+      // pre-passphrase v3 layout had cfg+chatMeta in index.json — we refuse to
+      // read this quietly because the user explicitly opted for a fresh start.
+      setStatus('err','Legacy v3 data detected — re-link folder via Settings to migrate');
+      return false;
     }else{
-      // Legacy single-blob format inside a directory (shouldn't happen, but be safe)
+      // Pre-v3 single-blob: apply as full snapshot (chats included inline)
       applySnap(idx);
     }
     S._metaWritten=true;
@@ -1313,17 +1740,48 @@ async function readDir(h){
   }
 }
 
-// Migrate an old single-file handle to the new sharded layout.
-// We can't convert a file handle into a directory handle, so we load the data,
-// then prompt the user to pick a folder on next action.
-async function migrateLegacy(fileHandle){
+// Restore helpers for rolling backups
+async function recoverIndex(){
+  const root=S.dirHandle;if(!root)return null;
   try{
-    const f=await fileHandle.getFile();
-    if(f.size===0)return true;
-    const d=await decryptData(await f.text());
-    if(d){applySnap(d);setStatus('warn','Loaded from legacy file — please pick a folder in Settings to migrate');}
-    return true;
-  }catch(e){console.error('migrateLegacy',e);return false;}
+    const backupsDir=await subDir(root,'backups');
+    const files=(await listDir(backupsDir)).filter(n=>n.startsWith('index.')).sort().reverse();
+    for(const name of files){
+      const raw=await readFrom(backupsDir,name);if(!raw)continue;
+      const d=await decryptData(raw);
+      if(d && (d.v>=4 || d.chatMeta)){console.warn('Recovered index from backup:',name);return d;}
+    }
+  }catch(e){console.warn('recoverIndex',e);}
+  return null;
+}
+async function recoverConfig(){
+  const root=S.dirHandle;if(!root)return null;
+  try{
+    const backupsDir=await subDir(root,'backups');
+    const files=(await listDir(backupsDir)).filter(n=>n.startsWith('config.')).sort().reverse();
+    for(const name of files){
+      const raw=await readFrom(backupsDir,name);if(!raw)continue;
+      const d=await decryptData(raw);
+      if(d){console.warn('Recovered config from backup:',name);return d;}
+    }
+  }catch(e){console.warn('recoverConfig',e);}
+  return null;
+}
+
+// Try to recover a chat from its newest backup
+async function recoverChat(id){
+  const root=S.dirHandle;if(!root)return null;
+  try{
+    const backupsDir=await subDir(root,'backups');
+    const files=(await listDir(backupsDir)).filter(n=>n.startsWith(`chat-${id}.`)).sort().reverse();
+    for(const name of files){
+      const raw=await readFrom(backupsDir,name);
+      if(!raw)continue;
+      const d=await decryptData(raw);
+      if(d&&d.id===id){console.warn('Recovered chat from backup:',name);return d;}
+    }
+  }catch(e){console.warn('recoverChat',e);}
+  return null;
 }
 
 // ═══════════════════════════════════════════
@@ -1383,14 +1841,22 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 
 async function linkDir(h){
   if(!await reqPerm(h)){setStatus('err','Permission denied');return false;}
-  S.dirHandle=h;await iSet('dh',h);
-  // clear legacy file handle if present (both disk + memory)
-  S.fileHandle=null;
+  // Unlock (existing folder) or initialize (fresh folder) with passphrase
+  S.dirHandle=h;
+  const unlocked=await unlockOrInitFolder(h);
+  if(!unlocked){
+    S.dirHandle=null;
+    setStatus('warn','Folder not unlocked');
+    return false;
+  }
+  await iSet('dh',h);
+  // clean up any stale legacy file handle IDB entry from pre-v4 builds
   try{await iDel('fh');}catch{}
   const ok=await readDir(h);
   if(ok){
     markAllDirty();  // ensure first write populates the folder
     await writeDir({force:true});
+    document.body.classList.remove('locked-pending');
     $('rc-banner').classList.remove('show');setStatus('ok','📁 Linked: '+h.name);
   }
   return ok;
@@ -2982,7 +3448,6 @@ function openSettings(tab){
   $('c-stop').value=(S.cfg.stop||[]).join('\n');$('c-sys').value=S.cfg.systemPrompt||'';
   $('c-chat-sys').value=S.chats[S.activeChat]?.systemOverride||'';
   if(S.dirHandle)$('c-filepath').value=S.dirHandle.name+'  (folder)';
-  else if(S.fileHandle)S.fileHandle.getFile().then(f=>{$('c-filepath').value=f.name+'  (legacy file — pick a folder to migrate)';}).catch(()=>{});
   else $('c-filepath').value='';
   updateRanges();renderEpList();
   const _ws=S.webSearch||DWEB;
@@ -3101,8 +3566,18 @@ $('c-browse').addEventListener('click',async()=>{
   if(await linkDir(h))$('c-filepath').value=h.name+'  (folder)';
 });
 $('save-now-btn').addEventListener('click',async()=>{
-  if(!S.dirHandle&&!S.fileHandle){setStatus('err','No folder linked — pick one first');return;}
+  if(!S.dirHandle){setStatus('err','No folder linked — pick one first');return;}
+  if(!ENC_KEY){setStatus('err','No passphrase set — reconnect to unlock the folder');return;}
   markAllDirty();await writeDir({force:true});setStatus('ok','Saved');
+});
+$('change-pp-btn').addEventListener('click',async()=>{
+  if(!S.dirHandle){setStatus('err','No folder linked — pick one first');return;}
+  if(!ENC_KEY){setStatus('err','Folder must be unlocked first');return;}
+  await changePassphraseFlow();
+});
+$('forget-pp-btn').addEventListener('click',async()=>{
+  await clearCachedKey();
+  setStatus('ok','Cached passphrase forgotten — you will be prompted next open');
 });
 $('export-plain-btn').addEventListener('click',()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(snapshot(),null,2)],{type:'application/json'}));a.download='Convergent-backup.json';a.click();});
 $('clear-all-btn').addEventListener('click',()=>{if(!confirm('Delete ALL chats?'))return;S.chats={};S.activeChat=null;save();newChat();});
@@ -3134,8 +3609,23 @@ $('import-btn').addEventListener('click',()=>$('imp-in').click());
 $('imp-in').addEventListener('change',async e=>{
   const f=e.target.files[0];if(!f)return;
   try{
-    const raw=await f.text();const d=await decryptData(raw);
-    applySnap(d||JSON.parse(raw));save();renderSB();renderMsgs();renderModelBar();setStatus('ok','Imported');
+    const raw=await f.text();
+    let parsed=null;
+    try{ parsed=JSON.parse(raw); }catch{ throw new Error('Not a valid JSON backup'); }
+    // If it's an encrypted payload (v>=2), try decryptData — needs ENC_KEY
+    if(parsed && parsed.v && parsed.v>=2){
+      if(!ENC_KEY){
+        setStatus('err','Imported file is encrypted — unlock a folder first, then import');
+        e.target.value='';return;
+      }
+      const d=await decryptData(raw);
+      if(!d){setStatus('err','Import failed — decryption error (wrong passphrase?)');e.target.value='';return;}
+      applySnap(d);
+    }else{
+      // Plain JSON backup (from Export Unencrypted Backup)
+      applySnap(parsed);
+    }
+    save();renderSB();renderMsgs();renderModelBar();setStatus('ok','Imported');
   }catch(err){setStatus('err','Import failed: '+err.message);}
   e.target.value='';
 });
@@ -3144,19 +3634,18 @@ $('imp-in').addEventListener('change',async e=>{
 // RECONNECT
 // ═══════════════════════════════════════════
 $('rc-btn').addEventListener('click',async()=>{
-  if(S.dirHandle){
-    if(await reqPerm(S.dirHandle)){
-      await readDir(S.dirHandle);
-      $('rc-banner').classList.remove('show');renderSB();renderMsgs();renderModelBar();applySB();
-      if(S.endpoints.length)fetchAllModels();setStatus('ok','Folder reconnected');
-    }else setStatus('err','Permission denied');
-  }else if(S.fileHandle){
-    if(await reqPerm(S.fileHandle)){
-      await migrateLegacy(S.fileHandle);
-      $('rc-banner').classList.remove('show');renderSB();renderMsgs();renderModelBar();applySB();
-      if(S.endpoints.length)fetchAllModels();
-      setStatus('warn','Legacy file reconnected — open Settings → Data to migrate to a folder');
-    }else setStatus('err','Permission denied');
+  if(!S.dirHandle){setStatus('err','No folder to reconnect');return;}
+  if(!await reqPerm(S.dirHandle)){setStatus('err','Permission denied');return;}
+  // Permission granted — unlock with passphrase (or cached key) and re-read
+  const unlocked=await unlockOrInitFolder(S.dirHandle);
+  if(!unlocked){setStatus('warn','Folder not unlocked');return;}
+  const ok=await readDir(S.dirHandle);
+  if(ok){
+    document.body.classList.remove('locked-pending');
+    $('rc-banner').classList.remove('show');
+    renderSB();renderMsgs();renderModelBar();applySB();
+    if(S.endpoints.length)fetchAllModels();
+    setStatus('ok','Folder reconnected');
   }
 });
 
@@ -3219,47 +3708,76 @@ $('ws-test-btn').addEventListener('click',()=>testWebSearch());
   initTheme();
   setStatus('','Initializing…');
 
-  await getOrCreateEncKey();
+  // Clean up any stale pre-v4 random encryption key from older builds
+  try{ await iDel('ek'); }catch{}
+  // Clean up any stale legacy file handle (pre-directory API)
+  try{ await iDel('fh'); }catch{}
 
-  // New: directory handle. Legacy: file handle (auto-migrate).
-  let dirHandle=null,fileHandle=null;
+  // Look up the previously-linked directory handle
+  let dirHandle=null;
   try{dirHandle=await iGet('dh');}catch{}
-  try{fileHandle=await iGet('fh');}catch{}
 
-  let fileWasLoaded=false;
+  // If a folder is known but not yet unlocked, hide all chat content immediately.
+  // This is a CSS-level guarantee: even if some other code path tries to render,
+  // the user sees nothing until they enter the passphrase. We remove this class
+  // ONLY after a successful unlock + readDir.
+  if(dirHandle){
+    document.body.classList.add('locked-pending');
+    // belt-and-suspenders: also clear the chat-list DOM in case anything ever
+    // rendered into it before init reached this point
+    const _cl=$('chat-list'); if(_cl) _cl.innerHTML='';
+  }
+
+  let folderLoaded=false;
+  let folderPendingUnlock=false;  // dirHandle known but not yet unlocked — don't leak cached chats
   if(dirHandle){
     const perm=await getPerm(dirHandle);
     if(perm==='granted'){
-      fileWasLoaded=await readDir(dirHandle);
-      if(fileWasLoaded)mergeFromLocalStorage();
-      setStatus('ok','📁 Linked: '+dirHandle.name);
-    }else if(perm==='prompt'){
+      // Permission is still granted from a previous session — unlock and read.
+      // If we have a cached CryptoKey matching this folder's salt, unlocking is
+      // silent. Otherwise the user will see the passphrase modal.
       S.dirHandle=dirHandle;
-      $('rc-msg').textContent='🔐 Click to reconnect to folder: '+dirHandle.name;
-      $('rc-banner').classList.add('show');setStatus('warn','Folder disconnected — click Reconnect');
-    }else{await iDel('dh');dirHandle=null;}
-  }else if(fileHandle){
-    // Legacy one-file user — load data, then prompt to upgrade
-    const perm=await getPerm(fileHandle);
-    if(perm==='granted'){
-      fileWasLoaded=await migrateLegacy(fileHandle);
-      S.fileHandle=fileHandle;
-      if(fileWasLoaded){
-        mergeFromLocalStorage();
-        setStatus('warn','Legacy file loaded — open Settings → Data to migrate to a folder');
+      const unlocked=await unlockOrInitFolder(dirHandle);
+      if(unlocked){
+        folderLoaded=await readDir(dirHandle);
+        if(folderLoaded){
+          mergeFromLocalStorage();
+          document.body.classList.remove('locked-pending');
+          setStatus('ok','📁 Linked: '+dirHandle.name);
+        }
+      }else{
+        // User cancelled the passphrase prompt — show reconnect banner and
+        // keep the background blank (don't leak the previous session's cached chats)
+        folderPendingUnlock=true;
+        $('rc-msg').textContent='🔐 Click to reconnect to folder: '+dirHandle.name;
+        $('rc-banner').classList.add('show');
+        setStatus('warn','Folder locked — click Reconnect to unlock');
       }
     }else if(perm==='prompt'){
-      S.fileHandle=fileHandle;
-      const f=await fileHandle.getFile().catch(()=>null);
-      if(f)$('rc-msg').textContent='🔐 Click to reconnect to legacy file: '+f.name;
-      $('rc-banner').classList.add('show');setStatus('warn','Legacy file disconnected — click Reconnect');
-    }else{await iDel('fh');fileHandle=null;}
+      // Need a user gesture first; show reconnect banner. Keep background blank.
+      S.dirHandle=dirHandle;
+      folderPendingUnlock=true;
+      $('rc-msg').textContent='🔐 Click to reconnect to folder: '+dirHandle.name;
+      $('rc-banner').classList.add('show');
+      setStatus('warn','Folder disconnected — click Reconnect');
+    }else{
+      // perm='denied' — folder gone. Treat as fresh start.
+      document.body.classList.remove('locked-pending');
+      await iDel('dh');dirHandle=null;
+    }
   }
 
-  if(!Object.keys(S.chats).length){
-    // Try localStorage fallback before creating a new chat
+  if(folderPendingUnlock){
+    // Folder path is known but not unlocked yet — leave S.chats empty so the
+    // UI shows a blank page behind the reconnect banner. Real data will load
+    // after the user clicks Reconnect and enters the passphrase.
+    S.chats={};
+    S.activeChat=null;
+  }else if(!Object.keys(S.chats).length){
+    // No folder linked at all — first-run or skipped-setup user.
+    // Use localStorage as a fallback, or create a fresh chat.
     let loaded=false;
-    if(!fileWasLoaded){
+    if(!folderLoaded){
       try{
         const raw=localStorage.getItem('Convergent-state');
         if(raw){const d=JSON.parse(raw);applySnap(d);loaded=true;}
@@ -3272,8 +3790,8 @@ $('ws-test-btn').addEventListener('click',()=>testWebSearch());
   applySB();
   renderSB();renderMsgs();
 
-  if(!S.endpoints.length&&!dirHandle&&!fileHandle){setTimeout(()=>$('setup-ov').classList.add('open'),250);setStatus('warn','Not configured');}
-  else if(S.endpoints.length)await fetchAllModels();
+  if(!S.endpoints.length&&!dirHandle){setTimeout(()=>$('setup-ov').classList.add('open'),250);setStatus('warn','Not configured');}
+  else if(S.endpoints.length&&!folderPendingUnlock)await fetchAllModels();
 
   if(!S.selModels.length&&S.models.length)S.selModels=[{modelId:S.models[0].id,endpointId:S.models[0].endpointId}];
   renderModelBar();
