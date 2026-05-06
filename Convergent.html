@@ -154,11 +154,11 @@ body{display:flex;flex-direction:column}
 .ai-card{flex:1;min-width:280px;background:var(--surf);border:1px solid var(--bdr);border-radius:12px;overflow:hidden}
 .ai-card-head{display:flex;align-items:center;gap:7px;padding:8px 14px;background:var(--grad-card-hd);border-bottom:1px solid var(--bdr);font-size:13px;color:var(--muted);font-weight:500}
 .model-dot{width:7px;height:7px;border-radius:50%;background:var(--acc);flex-shrink:0;box-shadow:0 0 6px var(--acc)}
-.ai-card:nth-child(1) .model-dot{background:var(--acc);box-shadow:0 0 6px var(--acc)}
-.ai-card:nth-child(2) .model-dot{background:var(--acc-t);box-shadow:0 0 6px var(--acc-t)}
-.ai-card:nth-child(3) .model-dot{background:var(--acc-o);box-shadow:0 0 6px var(--acc-o)}
-.ai-card:nth-child(4) .model-dot{background:var(--ok);box-shadow:0 0 6px var(--ok)}
+/* Per-card colour mapping is handled by .ai-card[data-mc] rules below — see v3 additions. */
 .ai-card-ep{margin-left:auto;font-size:12px;opacity:.6}
+.ai-card-rm{background:none;border:none;color:inherit;cursor:pointer;padding:2px 6px;border-radius:5px;font-size:16px;line-height:1;opacity:.55;transition:opacity .12s,background .12s,transform .12s;flex-shrink:0;font-family:inherit;margin-left:4px}
+.ai-card-rm:hover{opacity:1;background:color-mix(in srgb,currentColor 15%,transparent);transform:scale(1.05)}
+.ai-card-rm:focus-visible{outline:2px solid currentColor;outline-offset:1px}
 .ai-card-body{padding:13px 15px;font-size:14px;line-height:1.75;color:var(--txt2);word-break:break-word}
 .ai-card-body code{font-family:var(--mono);font-size:13px;background:var(--code-bg);color:var(--code-txt);border:1px solid var(--bdr);border-radius:4px;padding:1px 5px}
 .ai-card-body pre{background:var(--code-bg);color:var(--code-txt);border:1px solid var(--bdr);border-radius:8px;padding:11px 13px;overflow-x:auto;margin:6px 0;font-family:var(--mono);font-size:13px}
@@ -168,10 +168,23 @@ body{display:flex;flex-direction:column}
 .ai-single h1,.ai-card-body h1{font-size:18px;font-weight:700;color:var(--txt2);margin:12px 0 6px}
 .ai-single h2,.ai-card-body h2{font-size:16px;font-weight:600;color:var(--txt2);margin:10px 0 5px}
 .ai-single h3,.ai-card-body h3{font-size:14px;font-weight:600;color:var(--txt2);margin:8px 0 4px}
+.ai-single h4,.ai-card-body h4{font-size:13.5px;font-weight:600;color:var(--txt2);margin:7px 0 3px}
+.ai-single h5,.ai-card-body h5{font-size:13px;font-weight:600;color:var(--txt2);margin:6px 0 3px;text-transform:none}
+.ai-single h6,.ai-card-body h6{font-size:12.5px;font-weight:600;color:var(--muted);margin:6px 0 3px;text-transform:uppercase;letter-spacing:.04em}
+.ai-single hr,.ai-card-body hr{border:none;border-top:1px solid var(--bdr);margin:14px 0}
+.ai-single blockquote,.ai-card-body blockquote{margin:8px 0;padding:6px 12px;border-left:3px solid var(--acc);background:color-mix(in srgb,var(--acc) 6%,transparent);border-radius:0 6px 6px 0;color:var(--txt2)}
+.ai-single del,.ai-card-body del{opacity:.7}
 .ai-single p,.ai-card-body p{margin:0 0 8px}
 .ai-single p:last-child,.ai-card-body p:last-child{margin-bottom:0}
 .ai-single ul,.ai-card-body ul,.ai-single ol,.ai-card-body ol{margin:6px 0;padding-left:22px}
 .ai-single li,.ai-card-body li{margin:2px 0;line-height:1.7}
+.ai-single li>ul,.ai-single li>ol,.ai-card-body li>ul,.ai-card-body li>ol{margin:4px 0 4px 0}
+.ai-single .md-table-wrap,.ai-card-body .md-table-wrap{overflow-x:auto;margin:8px 0;border-radius:8px;border:1px solid var(--bdr)}
+.ai-single .md-table,.ai-card-body .md-table{border-collapse:collapse;width:100%;font-size:13px;line-height:1.55;color:var(--txt2)}
+.ai-single .md-table th,.ai-card-body .md-table th{background:var(--surf2);font-weight:600;text-align:left;padding:8px 12px;border-bottom:1px solid var(--bdr)}
+.ai-single .md-table td,.ai-card-body .md-table td{padding:8px 12px;border-top:1px solid var(--bdr);vertical-align:top}
+.ai-single .md-table tr:nth-child(even) td,.ai-card-body .md-table tr:nth-child(even) td{background:color-mix(in srgb,var(--surf2) 35%,transparent)}
+.ai-single .md-table code,.ai-card-body .md-table code{font-size:12px}
 .ai-single a,.ai-card-body a{color:var(--acc);text-decoration:underline;text-underline-offset:2px;text-decoration-thickness:1px;word-break:break-all}
 .ai-single a:hover,.ai-card-body a:hover{color:var(--acc2);text-decoration-thickness:2px}
 .ai-actions{display:flex;align-items:center;gap:4px;margin-top:10px}
@@ -325,6 +338,7 @@ textarea{resize:vertical;line-height:1.55}
 
 /* ── WEB SEARCH ── */
 #ws-wrap{position:relative}
+#ws-btn{position:relative}
 #ws-btn{background:none;border:1px solid var(--bdr);color:var(--muted);border-radius:8px;padding:5px 11px;font-family:var(--sans);font-size:13px;cursor:pointer;transition:border-color .12s,color .12s,background .12s;white-space:nowrap;display:flex;align-items:center;gap:5px;line-height:1}
 #ws-btn:hover{border-color:var(--acc);color:var(--acc)}
 #ws-btn.active{border-color:var(--ok);color:var(--ok);background:rgba(52,211,153,.08)}
@@ -396,7 +410,7 @@ textarea{resize:vertical;line-height:1.55}
 #pv-title-wrap{flex:1;display:flex;align-items:center;gap:14px;overflow:hidden;min-width:0}
 #pv-title-wrap > svg{width:38px;height:38px;padding:8px;background:var(--grad-btn);color:#fff;border-radius:10px;box-shadow:0 6px 18px rgba(167,139,250,.35),0 0 0 1px rgba(255,255,255,.08) inset;flex-shrink:0}
 #pv-title-inner{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
-#pv-title{font-size:22px;font-weight:600;color:var(--txt2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.01em;line-height:1.2}
+#pv-title{font-size:22px;font-weight:600;color:var(--txt2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.01em;line-height:1.2;cursor:default}
 #pv-count{font-size:12px;color:var(--muted);font-weight:500;display:inline-flex;align-items:center;gap:5px}
 #pv-count::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--acc);box-shadow:0 0 6px var(--acc)}
 #pv-new-chat{background:var(--grad-btn);border:none;color:#fff;border-radius:9px;padding:9px 16px;font-family:var(--sans);font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:7px;transition:opacity .12s,transform .1s,box-shadow .15s;flex-shrink:0;text-shadow:0 1px 2px rgba(0,0,0,.2);box-shadow:0 3px 12px rgba(167,139,250,.3)}
@@ -494,10 +508,163 @@ mark{background:rgba(167,139,250,.3);color:var(--txt2);border-radius:2px;padding
 .synth-mini-cards{display:flex;gap:8px;flex-wrap:wrap}
 .synth-mini-card{flex:1;min-width:200px;background:var(--bg);border:1px solid var(--bdr);border-radius:8px;overflow:hidden}
 .synth-mini-card-head{display:flex;align-items:center;gap:5px;padding:5px 9px;background:var(--grad-card-hd);border-bottom:1px solid var(--bdr);font-size:11px;color:var(--muted)}
+.synth-mini-card[data-mc="0"] .synth-mini-card-head{background:var(--m0-bg);color:var(--m0)}
+.synth-mini-card[data-mc="1"] .synth-mini-card-head{background:var(--m1-bg);color:var(--m1)}
+.synth-mini-card[data-mc="2"] .synth-mini-card-head{background:var(--m2-bg);color:var(--m2)}
+.synth-mini-card[data-mc="3"] .synth-mini-card-head{background:var(--m3-bg);color:var(--m3)}
+.synth-mini-card[data-mc="0"] .model-dot{background:var(--m0);box-shadow:0 0 4px var(--m0)}
+.synth-mini-card[data-mc="1"] .model-dot{background:var(--m1);box-shadow:0 0 4px var(--m1)}
+.synth-mini-card[data-mc="2"] .model-dot{background:var(--m2);box-shadow:0 0 4px var(--m2)}
+.synth-mini-card[data-mc="3"] .model-dot{background:var(--m3);box-shadow:0 0 4px var(--m3)}
 .synth-mini-card-body{padding:8px 10px;font-size:12px;line-height:1.65;color:var(--txt);max-height:180px;overflow-y:auto;word-break:break-word}
 .synth-mini-card-body code{font-family:var(--mono);font-size:11px;background:var(--code-bg);color:var(--code-txt);border:1px solid var(--bdr);border-radius:3px;padding:0 4px}
 .synth-mini-card-body pre{background:var(--code-bg);color:var(--code-txt);border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;overflow-x:auto;margin:4px 0;font-family:var(--mono);font-size:11px}
 .synth-answer-label{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--acc-o);margin-bottom:9px;display:flex;align-items:center;gap:6px}
+
+/* ═══════════════════════════════════════════
+   v3 — Feature additions
+   3 Pill+card colour mapping  4 Drag-to-reorder pills
+   5 Status bar enhancements   7 Accessibility (focus, aria)
+   8 Synthesis discoverability
+═══════════════════════════════════════════ */
+
+/* Per-model colour palette — referenced by both pills and cards.
+   Indices wrap with mod 4 so adding a 5th pill cycles back to slot 0. */
+:root{
+  --m0:#a78bfa; --m0-bg:rgba(167,139,250,.10); --m0-bd:rgba(167,139,250,.36);
+  --m1:#34d399; --m1-bg:rgba(52,211,153,.10);  --m1-bd:rgba(52,211,153,.36);
+  --m2:#fb923c; --m2-bg:rgba(251,146,60,.10);  --m2-bd:rgba(251,146,60,.36);
+  --m3:#22d3ee; --m3-bg:rgba(34,211,238,.10);  --m3-bd:rgba(34,211,238,.36);
+}
+[data-theme='light']{
+  --m0:#7c3aed; --m0-bg:rgba(124,58,237,.08);  --m0-bd:rgba(124,58,237,.30);
+  --m1:#059669; --m1-bg:rgba(5,150,105,.08);   --m1-bd:rgba(5,150,105,.30);
+  --m2:#ea580c; --m2-bg:rgba(234,88,12,.08);   --m2-bd:rgba(234,88,12,.30);
+  --m3:#0891b2; --m3-bg:rgba(8,145,178,.08);   --m3-bd:rgba(8,145,178,.30);
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme]){
+    --m0:#7c3aed; --m0-bg:rgba(124,58,237,.08);  --m0-bd:rgba(124,58,237,.30);
+    --m1:#059669; --m1-bg:rgba(5,150,105,.08);   --m1-bd:rgba(5,150,105,.30);
+    --m2:#ea580c; --m2-bg:rgba(234,88,12,.08);   --m2-bd:rgba(234,88,12,.30);
+    --m3:#0891b2; --m3-bg:rgba(8,145,178,.08);   --m3-bd:rgba(8,145,178,.30);
+  }
+}
+
+/* ── 3. Pill colour tinting + card mapping ── */
+.mpill[data-mc="0"]{background:var(--m0-bg);border-color:var(--m0-bd);border-left:2.5px solid var(--m0)}
+.mpill[data-mc="1"]{background:var(--m1-bg);border-color:var(--m1-bd);border-left:2.5px solid var(--m1)}
+.mpill[data-mc="2"]{background:var(--m2-bg);border-color:var(--m2-bd);border-left:2.5px solid var(--m2)}
+.mpill[data-mc="3"]{background:var(--m3-bg);border-color:var(--m3-bd);border-left:2.5px solid var(--m3)}
+.mpill[data-mc] .mpill-trigger{color:var(--txt2)}
+/* Override the old nth-child colours with explicit per-card vars so re-ordering
+   doesn't shuffle response colours away from their pill. */
+.ai-card[data-mc="0"]{border-color:var(--m0-bd);border-top:2px solid var(--m0)}
+.ai-card[data-mc="1"]{border-color:var(--m1-bd);border-top:2px solid var(--m1)}
+.ai-card[data-mc="2"]{border-color:var(--m2-bd);border-top:2px solid var(--m2)}
+.ai-card[data-mc="3"]{border-color:var(--m3-bd);border-top:2px solid var(--m3)}
+.ai-card[data-mc="0"] .ai-card-head{background:var(--m0-bg);color:var(--m0)}
+.ai-card[data-mc="1"] .ai-card-head{background:var(--m1-bg);color:var(--m1)}
+.ai-card[data-mc="2"] .ai-card-head{background:var(--m2-bg);color:var(--m2)}
+.ai-card[data-mc="3"] .ai-card-head{background:var(--m3-bg);color:var(--m3)}
+.ai-card[data-mc="0"] .model-dot{background:var(--m0);box-shadow:0 0 6px var(--m0)}
+.ai-card[data-mc="1"] .model-dot{background:var(--m1);box-shadow:0 0 6px var(--m1)}
+.ai-card[data-mc="2"] .model-dot{background:var(--m2);box-shadow:0 0 6px var(--m2)}
+.ai-card[data-mc="3"] .model-dot{background:var(--m3);box-shadow:0 0 6px var(--m3)}
+
+/* ── 4. Drag-to-reorder pills ── */
+.mpill{cursor:default}
+.mpill[draggable="true"]{cursor:grab}
+.mpill[draggable="true"]:active{cursor:grabbing}
+.mpill-grip{display:flex;flex-direction:column;gap:2px;margin-right:4px;margin-left:-4px;padding:2px;opacity:0;transition:opacity .12s;flex-shrink:0;cursor:grab}
+.mpill:hover .mpill-grip{opacity:.6}
+.mpill-grip:hover{opacity:1!important}
+.mpill-grip span{display:block;width:9px;height:1.5px;border-radius:1px;background:currentColor}
+.mpill.dragging{opacity:.4;transform:scale(.97)}
+.mpill.drop-before{box-shadow:-3px 0 0 var(--acc)}
+.mpill.drop-after{box-shadow:3px 0 0 var(--acc)}
+
+/* ── 5. Status bar enhancements ── */
+.st-sep{width:1px;height:14px;background:var(--bdr);flex-shrink:0}
+#st-txt{flex-shrink:0}
+#st-mcount{font-size:12px;color:var(--muted);flex-shrink:0;display:none}
+#st-mcount.show{display:inline}
+#st-toggles{display:flex;gap:6px;flex-shrink:0;align-items:center}
+.st-tag{display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:4px;font-size:11px;line-height:1.4;font-family:var(--sans)}
+.st-tag-ws{background:rgba(52,211,153,.12);color:var(--ok);border:1px solid rgba(52,211,153,.3)}
+.st-tag-syn{background:rgba(251,146,60,.12);color:var(--acc-o);border:1px solid rgba(251,146,60,.3)}
+.st-tag-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;background:currentColor}
+#st-latency{display:none;align-items:center;gap:8px;font-size:12px;color:var(--muted);font-family:var(--mono);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#st-latency.show{display:inline-flex}
+.st-lat-item{display:inline-flex;align-items:center;gap:4px}
+.st-lat-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.st-lat-dot[data-mc="0"]{background:var(--m0)}
+.st-lat-dot[data-mc="1"]{background:var(--m1)}
+.st-lat-dot[data-mc="2"]{background:var(--m2)}
+.st-lat-dot[data-mc="3"]{background:var(--m3)}
+
+/* ── 7. Accessibility — visible focus, focus rings ── */
+:focus{outline:none}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:6px}
+button:focus-visible,
+.mpill-trigger:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:4px}
+.mpill-item:focus-visible,
+.ci:focus-visible,
+.chat-item:focus-visible,
+.folder-hd:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.mpill-item:focus-visible{outline-offset:-2px;background:var(--surf3)}
+.ci:focus-visible{outline-offset:-2px;background:var(--bdr);color:var(--txt2)}
+/* Make the small dropdown options look right when keyboard-focused */
+.mpill-item[aria-selected="true"]{color:var(--acc);background:rgba(167,139,250,.10)}
+
+/* ── 8. Synthesis discoverability ── */
+#synth-btn[aria-disabled="true"]{opacity:.45;cursor:not-allowed;border-style:dashed}
+#synth-btn[aria-disabled="true"]:hover{border-color:var(--bdr);color:var(--muted);background:none}
+.synth-pop{position:absolute;bottom:calc(100% + 10px);right:0;width:210px;max-width:210px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:11px 13px;z-index:200;box-shadow:0 8px 28px rgba(0,0,0,.5);opacity:0;pointer-events:none;transform:translateY(4px);transition:opacity .15s,transform .15s;word-wrap:break-word;overflow-wrap:break-word}
+.synth-pop.show{opacity:1;transform:translateY(0)}
+.synth-pop::after{content:'';position:absolute;bottom:-5px;right:18px;width:8px;height:8px;background:var(--surf2);border-right:1px solid var(--bdr2);border-bottom:1px solid var(--bdr2);transform:rotate(45deg)}
+.synth-pop-title{font-size:12px;font-weight:600;color:var(--txt2);margin-bottom:4px;display:block}
+.synth-pop-body{font-size:12px;color:var(--txt);line-height:1.5;margin-bottom:6px;display:block;white-space:normal}
+.synth-pop-req{font-size:11px;color:var(--acc-o);display:flex;align-items:flex-start;gap:5px;white-space:normal}
+#synth-btn{position:relative}
+/* Coach mark pulse removed — button needs no extra attention, popover on hover is sufficient */
+#synth-active-bar{display:none;align-items:center;gap:6px;padding:5px 14px;background:rgba(251,146,60,.07);border-top:1px solid rgba(251,146,60,.2);font-size:12px;color:var(--acc-o);flex-shrink:0}
+#synth-active-bar.show{display:flex}
+@keyframes pulse2{0%,100%{opacity:1}50%{opacity:.4}}
+#synth-active-bar .sa-dot{width:6px;height:6px;border-radius:50%;background:var(--acc-o);animation:pulse2 1.2s ease-in-out infinite;flex-shrink:0}
+
+/* sr-only utility for accessibility-only labels */
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+/* ── Slash commands popup ── */
+#sc-pop{position:absolute;bottom:calc(100% + 6px);left:14px;right:14px;max-width:520px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.55);z-index:100;display:none;overflow:hidden}
+#sc-pop.open{display:block}
+.sc-list{max-height:260px;overflow-y:auto;padding:5px}
+.sc-empty{padding:14px 16px;font-size:13px;color:var(--muted);text-align:center}
+.sc-item{display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:7px;cursor:pointer;transition:background .12s}
+.sc-item:hover,.sc-item.focused{background:var(--surf3)}
+.sc-item-trig{font-family:var(--mono);font-size:12.5px;color:var(--acc);font-weight:500;min-width:90px;flex-shrink:0}
+.sc-item-label{font-size:13px;color:var(--txt2);flex-shrink:0;font-weight:500}
+.sc-item-tpl{font-size:12px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sc-item-rm{background:none;border:none;color:var(--muted);cursor:pointer;padding:3px 7px;border-radius:5px;font-size:14px;line-height:1;opacity:0;transition:opacity .12s,background .12s,color .12s;flex-shrink:0;font-family:inherit}
+.sc-item:hover .sc-item-rm,.sc-item.focused .sc-item-rm{opacity:.6}
+.sc-item-rm:hover{opacity:1!important;background:rgba(232,68,67,.12);color:var(--err)}
+.sc-divider{height:1px;background:var(--bdr);margin:5px 0}
+.sc-create-btn{display:flex;align-items:center;gap:8px;width:100%;padding:9px 13px;background:none;border:none;color:var(--txt2);font-size:13px;cursor:pointer;font-family:inherit;border-top:1px solid var(--bdr);transition:background .12s}
+.sc-create-btn:hover{background:var(--surf3);color:var(--acc)}
+.sc-create-btn svg{flex-shrink:0;color:var(--acc)}
+.sc-form{padding:14px 14px 12px;border-top:1px solid var(--bdr)}
+.sc-form .field{margin-bottom:9px}
+.sc-form label{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.sc-form input,.sc-form textarea{width:100%;background:var(--surf);border:1px solid var(--bdr);border-radius:7px;padding:7px 10px;color:var(--txt2);font-family:var(--sans);font-size:13px;box-sizing:border-box}
+.sc-form input:focus,.sc-form textarea:focus{outline:none;border-color:var(--acc);box-shadow:var(--shadow-acc)}
+.sc-form textarea{resize:vertical;min-height:60px;font-family:var(--sans)}
+.sc-form-actions{display:flex;gap:7px;justify-content:flex-end;margin-top:10px}
+.sc-form .btn{padding:6px 13px;border-radius:7px;font-size:12.5px;cursor:pointer;border:1px solid var(--bdr);background:var(--surf);color:var(--txt2);font-family:inherit}
+.sc-form .btn-p{background:var(--acc);color:#fff;border-color:transparent}
+.sc-form .btn-p:hover{filter:brightness(1.1)}
+.sc-form .btn-g:hover{background:var(--surf3)}
+.sc-form-err{color:var(--err);font-size:11.5px;margin-top:6px;min-height:14px}
 
 </style>
 </head>
@@ -508,7 +675,7 @@ mark{background:rgba(167,139,250,.3);color:var(--txt2);border-radius:2px;padding
   <button id="sb-toggle" title="Toggle sidebar">
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
   </button>
-  <span id="topbar-title">Convergent</span>
+  <span id="topbar-title">Convergent </span>
   <div class="tbar-sp"></div>
   <button id="theme-toggle" title="Toggle theme" aria-label="Switch to light mode"></button>
   <!-- Change 2: enc-badge removed -->
@@ -580,7 +747,12 @@ mark{background:rgba(167,139,250,.3);color:var(--txt2);border-radius:2px;padding
       <div id="pv-title-wrap">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         <div id="pv-title-inner">
-          <div id="pv-title">Project</div>
+          <div id="pv-title-row" style="display:flex;align-items:center;gap:8px;min-width:0">
+            <div id="pv-title">Project</div>
+            <button id="pv-rename-btn" title="Rename project" style="background:none;border:none;cursor:pointer;color:var(--muted);padding:2px 4px;border-radius:5px;display:flex;align-items:center;flex-shrink:0;opacity:0;transition:opacity .15s" aria-label="Rename project">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+          </div>
           <span id="pv-count"></span>
         </div>
       </div>
@@ -606,6 +778,22 @@ mark{background:rgba(167,139,250,.3);color:var(--txt2);border-radius:2px;padding
   </div>
   <div id="inp-area">
     <div id="inp-wrap">
+      <div id="sc-pop" role="listbox" aria-label="Slash commands">
+        <div class="sc-list" id="sc-list"></div>
+        <button class="sc-create-btn" id="sc-create" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span>Create new command</span>
+        </button>
+        <div class="sc-form" id="sc-form" style="display:none">
+          <div class="field"><label for="sc-name">Trigger (no spaces)</label><input type="text" id="sc-name" placeholder="/myaction" autocomplete="off" spellcheck="false"></div>
+          <div class="field"><label for="sc-tpl">Template</label><textarea id="sc-tpl" rows="3" placeholder="The text to insert when this command is selected"></textarea></div>
+          <div class="sc-form-err" id="sc-err"></div>
+          <div class="sc-form-actions">
+            <button class="btn btn-g" id="sc-form-cancel" type="button">Cancel</button>
+            <button class="btn btn-p" id="sc-form-save" type="button">Save</button>
+          </div>
+        </div>
+      </div>
       <div id="inp-row">
         <textarea id="user-inp" placeholder="Type a message to start…" rows="1"></textarea>
         <button id="stop-btn" title="Stop">■</button>
@@ -613,16 +801,28 @@ mark{background:rgba(167,139,250,.3);color:var(--txt2);border-radius:2px;padding
           <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
         </button>
       </div>
-      <div id="model-bar">
-        <button id="add-model-btn">+ Add Model</button>
-        <button id="synth-btn" title="Synthesis mode: query all selected models in parallel, then synthesize one definitive answer">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <div id="model-bar" role="toolbar" aria-label="Model selection and chat options">
+        <button id="add-model-btn" aria-label="Add model">+ Add Model</button>
+        <button id="synth-btn" type="button" role="switch" aria-checked="false" aria-label="Toggle synthesis mode" aria-describedby="synth-pop-id">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
           Synthesize
+          <span class="synth-pop" id="synth-pop-id" role="tooltip">
+            <span class="synth-pop-title">Synthesis mode</span>
+            <span class="synth-pop-body">Queries every selected model in parallel, then merges their answers into one unified response.</span>
+            <span class="synth-pop-req">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 5v4M8 11v.5"/></svg>
+              Requires 2 or more models
+            </span>
+          </span>
         </button>
         <div id="ws-wrap">
-          <button id="ws-btn" title="Web Search">
+          <button id="ws-btn" aria-describedby="ws-pop-id">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             Web Search
+            <span class="synth-pop" id="ws-pop-id" role="tooltip">
+              <span class="synth-pop-title">Web Search</span>
+              <span class="synth-pop-body">Searches the web for current events and up-to-date information.</span>
+            </span>
           </button>
           <div id="ws-dd">
             <div class="ws-dd-title">Web Search</div>
@@ -641,22 +841,32 @@ mark{background:rgba(167,139,250,.3);color:var(--txt2);border-radius:2px;padding
           </button>
         </div>
       </div>
+      <div id="synth-active-bar" role="status" aria-live="polite">
+        <span class="sa-dot" aria-hidden="true"></span>
+        <span>Synthesis active — responses will be merged after streaming</span>
+      </div>
     </div>
   </div>
 </div>
 </div>
 
-<div id="status-bar">
+<div id="status-bar" role="status" aria-live="polite">
   <div class="sdot" id="sdot"></div>
   <span id="st-txt">Initializing…</span>
-  <span id="st-right"></span>
+  <span class="st-sep" id="st-sep1" style="display:none"></span>
+  <span id="st-mcount" aria-label="Active models"></span>
+  <span class="st-sep" id="st-sep2" style="display:none"></span>
+  <span id="st-toggles" aria-label="Active features"></span>
+  <span class="st-sep" id="st-sep3" style="display:none"></span>
+  <span id="st-latency" aria-label="Per-model response time"></span>
+  <span id="st-right" style="margin-left:auto"></span>
 </div>
 
 <!-- CONTEXT MENU -->
-<div id="ctx">
-  <div class="ci" id="ctx-rename">✏️&nbsp; Rename</div>
-  <div class="ci" id="ctx-move">📁&nbsp; Move to folder</div>
-  <div class="ci danger" id="ctx-del">🗑&nbsp; Delete</div>
+<div id="ctx" role="menu" aria-label="Chat actions">
+  <div class="ci" id="ctx-rename" role="menuitem" tabindex="-1">✏️&nbsp; Rename</div>
+  <div class="ci" id="ctx-move" role="menuitem" tabindex="-1">📁&nbsp; Move to project</div>
+  <div class="ci danger" id="ctx-del" role="menuitem" tabindex="-1">🗑&nbsp; Delete</div>
 </div>
 
 <!-- SETUP MODAL -->
@@ -672,7 +882,7 @@ mark{background:rgba(167,139,250,.3);color:var(--txt2);border-radius:2px;padding
     <div class="field">
       <label>API Base URL</label>
       <input type="text" id="su-url" placeholder="https://api.openai.com/v1">
-      <div class="fhint">Any OpenAI-compatible endpoint. Ollama: http://localhost:11434/v1 · Google Gemini: https://generativelanguage.googleapis.com/v1beta · NVIDIA NIM: https://integrate.api.nvidia.com/v1</div>
+      <div class="fhint">Any OpenAI-compatible endpoint. Ollama: http://localhost:11434/v1 · Google Gemini: https://generativelanguage.googleapis.com/v1beta</div>
     </div>
     <div class="field">
       <label>API Key</label>
@@ -874,8 +1084,8 @@ mark{background:rgba(167,139,250,.3);color:var(--txt2);border-radius:2px;padding
 <!-- RENAME MODAL -->
 <div class="ov" id="ren-ov">
   <div class="sm-box">
-    <h3>Rename Chat</h3>
-    <div class="field"><label>Title</label><input type="text" id="ren-in" placeholder="Chat title…"></div>
+    <h3 id="ren-title">Rename Chat</h3>
+    <div class="field"><label id="ren-label">Title</label><input type="text" id="ren-in" placeholder="Chat title…"></div>
     <div style="display:flex;gap:9px;justify-content:flex-end">
       <button class="btn btn-g" id="ren-cancel">Cancel</button>
       <button class="btn btn-p" id="ren-ok">Rename</button>
@@ -898,7 +1108,7 @@ mark{background:rgba(167,139,250,.3);color:var(--txt2);border-radius:2px;padding
 <!-- MOVE MODAL -->
 <div class="ov" id="mv-ov">
   <div class="sm-box">
-    <h3>Move to Folder</h3>
+    <h3>Move to Project</h3>
     <div id="mv-opts"></div>
     <div style="display:flex;gap:9px;justify-content:flex-end;margin-top:16px">
       <button class="btn btn-g" id="mv-cancel">Cancel</button>
@@ -913,10 +1123,22 @@ mark{background:rgba(167,139,250,.3);color:var(--txt2);border-radius:2px;padding
 // ═══════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════
-const DCFG={timeout:120,temp:.7,topp:1,maxTokens:4096,ctxMsgs:40,freq:0,pres:0,stream:true,showUsage:true,stop:[],systemPrompt:'',synthesize:false,renderMarkdown:false};
+const DCFG={timeout:120,temp:.7,topp:1,maxTokens:4096,ctxMsgs:40,freq:0,pres:0,stream:true,showUsage:true,stop:[],systemPrompt:'',synthesize:false,renderMarkdown:true};
 const DWEB={enabled:false,timeRange:'hour',providers:{google:{enabled:false,apiKey:'',cx:''},bing:{enabled:false,apiKey:''},duckduckgo:{enabled:false},searxng:{enabled:false,url:''},brave:{enabled:false,apiKey:''},tavily:{enabled:false,apiKey:''},custom:{enabled:false,url:'',apiKey:''}}};
 const S={cfg:{...DCFG},endpoints:[],models:[],folders:{},chats:{},activeChat:null,activeProject:null,projectsExpanded:true,projectsShowAll:false,recentChatsExpanded:true,
-         selModels:[],streaming:false,aborts:{},dirHandle:null,sbVisible:true,webSearch:{...DWEB}};
+         selModels:[],streaming:false,aborts:{},dirHandle:null,sbVisible:true,webSearch:{...DWEB},slashCommands:null};
+
+// Built-in slash commands (used as defaults when slashCommands hasn't been initialised yet).
+// Once initialised, the user's array fully replaces these — including the ability to delete them.
+const DEFAULT_SLASH_COMMANDS=[
+  {id:'compare',  trigger:'/compare',  label:'Compare',   template:'Compare how each of you would explain or approach: '},
+  {id:'eli5',     trigger:'/eli5',     label:'ELI5',      template:"Explain this like I'm 5: "},
+  {id:'summarize',trigger:'/summarize',label:'Summarize', template:'Summarize the following in concise bullet points: '},
+  {id:'translate',trigger:'/translate',label:'Translate', template:'Translate the following to English (state the source language first): '},
+  {id:'debug',    trigger:'/debug',    label:'Debug',     template:'Debug this code, explain what is wrong, and propose a fix:\n\n'},
+  {id:'improve',  trigger:'/improve',  label:'Improve',   template:'Improve the writing of the following — clearer, tighter, same tone:\n\n'},
+  {id:'pros',     trigger:'/pros',     label:'Pros & Cons',template:'List the pros and cons of: '},
+];
 
 // ═══════════════════════════════════════════
 // UTILS
@@ -943,6 +1165,66 @@ function addTokens(n){
 function tokenRight(){
   const chat=S.chats[S.activeChat];
   return(S.cfg.showUsage&&chat?.tokens)?`~${chat.tokens.toLocaleString()} tokens`:'';
+}
+
+// ── v3: per-turn latency tracking ──
+// _latency[idx] = { start:ms, firstChunk:ms|null, end:ms|null }
+const _latency={current:[]};
+function fmtMs(ms){
+  if(ms==null)return '…';
+  return ms<1000?ms+'ms':(ms/1000).toFixed(1)+'s';
+}
+function renderLatency(){
+  const el=$('st-latency');
+  const arr=_latency.current;
+  if(!arr||!arr.length){el.classList.remove('show');el.innerHTML='';$('st-sep3').style.display='none';return;}
+  // build per-model spans
+  const html=arr.map((l,i)=>{
+    if(!l)return '';
+    const t=l.end?(l.end-l.start):(l.firstChunk?(l.firstChunk-l.start):(Date.now()-l.start));
+    return `<span class="st-lat-item"><span class="st-lat-dot" data-mc="${i%4}"></span>${fmtMs(t)}</span>`;
+  }).filter(Boolean).join('');
+  if(!html){el.classList.remove('show');el.innerHTML='';$('st-sep3').style.display='none';return;}
+  el.innerHTML=html;
+  el.classList.add('show');
+  $('st-sep3').style.display='inline-block';
+}
+let _latencyTimer=null;
+function startLatencyTicker(){
+  stopLatencyTicker();
+  _latencyTimer=setInterval(renderLatency,150);
+}
+function stopLatencyTicker(){
+  if(_latencyTimer){clearInterval(_latencyTimer);_latencyTimer=null;}
+}
+
+// ── v3: refresh ambient info in status bar (model count + active toggles) ──
+function updateStatusBar(){
+  const n=(S.selModels||[]).length;
+  const mc=$('st-mcount'),sep1=$('st-sep1'),sep2=$('st-sep2'),tg=$('st-toggles');
+  if(n>0){
+    mc.classList.add('show');
+    mc.textContent=n+(n===1?' model':' models')+' active';
+    sep1.style.display='inline-block';
+  }else{
+    mc.classList.remove('show');mc.textContent='';
+    sep1.style.display='none';
+  }
+  // toggles
+  tg.innerHTML='';
+  const wsOn=!!(S.webSearch&&S.webSearch.enabled);
+  const synOn=!!S.cfg.synthesize;
+  if(wsOn){
+    const t=document.createElement('span');t.className='st-tag st-tag-ws';
+    t.innerHTML='<span class="st-tag-dot"></span>Web search on';
+    tg.appendChild(t);
+  }
+  if(synOn){
+    const t=document.createElement('span');t.className='st-tag st-tag-syn';
+    t.innerHTML='<span class="st-tag-dot"></span>Synthesis on';
+    tg.appendChild(t);
+  }
+  sep2.style.display=(wsOn||synOn)?'inline-block':'none';
 }
 // ── smart auto-scroll during streaming ──
 // Only scroll to bottom if the user is already near the bottom. If they've scrolled up to read
@@ -996,6 +1278,54 @@ function getMessageVersionData(messageIndex,versionIndex){
   if(!versions.length)return null;
   const safe=Math.min(Math.max(versionIndex||0,0),versions.length-1);
   return{msg,version:versions[safe],versionIndex:safe,count:versions.length};
+}
+
+// Remove a single model's response from a multi-message or synthesized message's source list.
+// Updates the active version's responses array and re-renders the chat. The user can recover
+// only by retrying the message (which produces a new version) — this matches their stated intent
+// of "freeing up screen space" for unwanted/erroring outputs.
+function removeModelResponse(messageIndex,responseIndex){
+  const chat=S.chats[S.activeChat];if(!chat)return;
+  const msg=chat?.messages?.[messageIndex];if(!msg)return;
+  const v=msg.activeVersion||0;
+  // Helper: actually splice from the right place
+  const spliceFrom=(arr)=>{
+    if(!Array.isArray(arr))return false;
+    if(responseIndex<0||responseIndex>=arr.length)return false;
+    arr.splice(responseIndex,1);
+    return true;
+  };
+  let changed=false;
+  if(msg.role==='multi'){
+    if(Array.isArray(msg.versions)&&msg.versions[v]?.responses){
+      changed=spliceFrom(msg.versions[v].responses);
+    }
+    if(Array.isArray(msg.responses)){
+      changed=spliceFrom(msg.responses)||changed;
+    }
+    // If we just removed the last response, drop the message entirely so we don't
+    // leave behind an empty bubble.
+    const remaining=(msg.versions?.[v]?.responses||msg.responses||[]).length;
+    if(changed&&remaining===0){
+      chat.messages.splice(messageIndex,1);
+      // If the previous message was the user prompt with no other reply, the user can re-ask.
+    }
+  }else if(msg.role==='synthesized'){
+    if(Array.isArray(msg.versions)&&msg.versions[v]?.responses){
+      changed=spliceFrom(msg.versions[v].responses);
+    }
+    if(Array.isArray(msg.responses)){
+      changed=spliceFrom(msg.responses)||changed;
+    }
+    // For synthesized messages we never delete the bubble — the synthesized answer is
+    // still valid even if all source responses are hidden.
+  }
+  if(!changed)return;
+  msg.updatedAt=Date.now();
+  if(chat)chat.updatedAt=Date.now();
+  save();
+  renderMsgs();
+  setStatus('ok','Removed model response');
 }
 function updateVersionUI(messageIndex,responseIndex,bodyEl,pageEl,prevBtn,nextBtn){
   const data=getMessageVersionData(messageIndex,S.chats[S.activeChat]?.messages?.[messageIndex]?.activeVersion||0);
@@ -1378,7 +1708,7 @@ async function unlockOrInitFolder(h){
     // Legacy v1/v2/v3 folder — since the user explicitly chose "start fresh, no
     // migration", we refuse rather than silently re-encrypting unreadable data.
     const cont = confirm(
-      'This folder contains data from an older Convergentversion (pre-passphrase). ' +
+      'This folder contains data from an older Convergent version (pre-passphrase). ' +
       'Automatic migration is not supported. Click OK to wipe it and start fresh ' +
       'with a new passphrase, or Cancel to pick a different folder.'
     );
@@ -1464,7 +1794,7 @@ async function changePassphraseFlow(){
 // Full snapshot (used for export/import and localStorage cache)
 function snapshot(){
   return{cfg:S.cfg,endpoints:S.endpoints,folders:S.folders,chats:S.chats,
-         activeChat:S.activeChat,selModels:S.selModels,sbVisible:S.sbVisible,webSearch:S.webSearch,projectsExpanded:S.projectsExpanded,recentChatsExpanded:S.recentChatsExpanded};
+         activeChat:S.activeChat,selModels:S.selModels,sbVisible:S.sbVisible,webSearch:S.webSearch,projectsExpanded:S.projectsExpanded,recentChatsExpanded:S.recentChatsExpanded,slashCommands:S.slashCommands};
 }
 // Index — chat metadata only. Rewritten whenever any chat changes (small file).
 function indexSnapshot(){
@@ -1486,7 +1816,8 @@ function configSnapshot(){
          sbVisible:S.sbVisible,
          projectsExpanded:S.projectsExpanded,
          recentChatsExpanded:S.recentChatsExpanded,
-         webSearch:S.webSearch};
+         webSearch:S.webSearch,
+         slashCommands:S.slashCommands};
 }
 // Per-chat snapshot — the heavy payload
 function chatSnapshot(id){
@@ -1508,6 +1839,7 @@ function applySnap(d){
   if(typeof d.projectsExpanded==='boolean')S.projectsExpanded=d.projectsExpanded;
   if(typeof d.recentChatsExpanded==='boolean')S.recentChatsExpanded=d.recentChatsExpanded;
   if(d.webSearch)S.webSearch={...DWEB,...d.webSearch,providers:{...DWEB.providers,...(d.webSearch.providers||{}),brave:{...DWEB.providers.brave,...(d.webSearch.providers?.brave||{})},tavily:{...DWEB.providers.tavily,...(d.webSearch.providers?.tavily||{})}}};
+  if(Array.isArray(d.slashCommands))S.slashCommands=d.slashCommands;
 }
 // Apply a config.json payload (no chats in it)
 function applyConfig(c){
@@ -1520,6 +1852,7 @@ function applyConfig(c){
   if(typeof c.projectsExpanded==='boolean')S.projectsExpanded=c.projectsExpanded;
   if(typeof c.recentChatsExpanded==='boolean')S.recentChatsExpanded=c.recentChatsExpanded;
   if(c.webSearch)S.webSearch={...DWEB,...c.webSearch,providers:{...DWEB.providers,...(c.webSearch.providers||{}),brave:{...DWEB.providers.brave,...(c.webSearch.providers?.brave||{})},tavily:{...DWEB.providers.tavily,...(c.webSearch.providers?.tavily||{})}}};
+  if(Array.isArray(c.slashCommands))S.slashCommands=c.slashCommands;
 }
 
 // ═══════════════════════════════════════════
@@ -1986,9 +2319,6 @@ $('user-inp').addEventListener('focus',()=>{if(searchActive)closeSearch();});
 function isGeminiEndpoint(ep){
   return /generativelanguage\.googleapis\.com/i.test(ep.url||'');
 }
-function isNvidiaEndpoint(ep){
-  return /integrate\.api\.nvidia\.com/i.test(ep.url||'');
-}
 async function fetchOneEpGemini(ep){
   try{
     const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),12000);
@@ -2002,63 +2332,9 @@ async function fetchOneEpGemini(ep){
       .filter(m=>m.id);
   }catch(e){console.warn(ep.name,e.message);return[];}
 }
-const NVIDIA_NIM_MODELS=[
-  'meta/llama-3.3-70b-instruct',
-  'meta/llama-3.1-405b-instruct',
-  'meta/llama-3.1-70b-instruct',
-  'meta/llama-3.1-8b-instruct',
-  'meta/llama3-70b-instruct',
-  'meta/llama3-8b-instruct',
-  'nvidia/llama-3.1-nemotron-70b-instruct',
-  'nvidia/llama-3.3-nemotron-super-49b-v1',
-  'nvidia/nemotron-4-340b-instruct',
-  'nvidia/nemotron-mini-4b-instruct',
-  'mistralai/mistral-large-2-instruct',
-  'mistralai/mixtral-8x7b-instruct-v0.1',
-  'mistralai/mixtral-8x22b-instruct-v0.1',
-  'mistralai/mistral-7b-instruct-v0.3',
-  'google/gemma-2-27b-it',
-  'google/gemma-2-9b-it',
-  'google/gemma-2-2b-it',
-  'microsoft/phi-3-medium-128k-instruct',
-  'microsoft/phi-3-mini-128k-instruct',
-  'microsoft/phi-3.5-mini-instruct',
-  'deepseek-ai/deepseek-r1',
-  'deepseek-ai/deepseek-r1-distill-llama-70b',
-  'deepseek-ai/deepseek-coder-6.7b-instruct',
-  'qwen/qwen2.5-72b-instruct',
-  'qwen/qwen2.5-7b-instruct',
-  'qwen/qwen2-7b-instruct',
-  '01-ai/yi-large',
-  'inflection/inflection-3-pi',
-  'inflection/inflection-3-productivity',
-  'seallms/seallm-7b-v2.5',
-  'snowflake/arctic',
-  'writer/palmyra-x-004',
-  'upstage/solar-10.7b-instruct',
-];
-async function fetchOneEpNvidia(ep){
-  try{
-    const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),10000);
-    const r=await fetch(ep.url.replace(/\/$/,'')+'/models',{
-      headers:{'Authorization':'Bearer '+ep.key,'Accept':'application/json'},signal:ctrl.signal});
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    const d=await r.json();
-    const models=(d.data||d.models||[])
-      .map(m=>({id:m.id||m.name,endpointId:ep.id,epName:ep.name}))
-      .filter(m=>m.id);
-    if(models.length)return models;
-    throw new Error('empty list');
-  }catch(e){
-    // NVIDIA's /models endpoint blocks browser requests (CORS). Fall back to known model list.
-    console.warn('NVIDIA /models unreachable from browser ('+e.message+'), using built-in model list.');
-    return NVIDIA_NIM_MODELS.map(id=>({id,endpointId:ep.id,epName:ep.name}));
-  }
-}
 async function fetchOneEp(ep){
   if(ep.enabled===false)return[];
   if(isGeminiEndpoint(ep))return fetchOneEpGemini(ep);
-  if(isNvidiaEndpoint(ep))return fetchOneEpNvidia(ep);
   try{
     const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),12000);
     const r=await fetch(ep.url.replace(/\/$/,'')+'/models',{headers:{'Authorization':'Bearer '+ep.key},signal:ctrl.signal});
@@ -2100,19 +2376,38 @@ function renderModelBar(){
   S.selModels.forEach((sel,idx)=>{
     const pill=document.createElement('div');
     pill.className='mpill';
+    pill.dataset.idx=idx;
+    pill.dataset.mc=idx%4;          // colour slot, mod 4
+    pill.setAttribute('draggable','true');
+
+    // grip handle (drag affordance)
+    const grip=document.createElement('div');
+    grip.className='mpill-grip';
+    grip.setAttribute('aria-hidden','true');
+    grip.title='Drag to reorder';
+    grip.innerHTML='<span></span><span></span><span></span>';
+    pill.appendChild(grip);
 
     const trigger=document.createElement('div');
     trigger.className='mpill-trigger';
     trigger.title=sel.modelId||'Select model';
     trigger.textContent=sel.modelId||'Select model';
+    trigger.setAttribute('role','combobox');
+    trigger.setAttribute('aria-expanded','false');
+    trigger.setAttribute('aria-haspopup','listbox');
+    trigger.setAttribute('aria-label','Model '+(idx+1)+': '+(sel.modelId||'select'));
+    trigger.setAttribute('tabindex','0');
 
     const dd=document.createElement('div');
     dd.className='mpill-dd';
+    dd.setAttribute('role','listbox');
+    dd.setAttribute('aria-label','Available models');
 
     const searchIn=document.createElement('input');
     searchIn.type='text';
     searchIn.className='mpill-search';
     searchIn.placeholder='Search models…';
+    searchIn.setAttribute('aria-label','Search models');
 
     const list=document.createElement('div');
     list.className='mpill-list';
@@ -2128,16 +2423,26 @@ function renderModelBar(){
         const gh=document.createElement('div');
         gh.className='mpill-group-hd';
         gh.textContent=g.name;
+        gh.setAttribute('role','presentation');
         list.appendChild(gh);
         filtered.forEach(m=>{
           const item=document.createElement('div');
-          item.className='mpill-item'+(m.id===sel.modelId&&m.endpointId===sel.endpointId?' sel':'');
+          const isSel=(m.id===sel.modelId&&m.endpointId===sel.endpointId);
+          item.className='mpill-item'+(isSel?' sel':'');
           item.textContent=m.id;
           item.title=m.id;
+          item.setAttribute('role','option');
+          item.setAttribute('tabindex','-1');
+          item.setAttribute('aria-selected',isSel?'true':'false');
           item.addEventListener('click',e=>{
             e.stopPropagation();
             S.selModels[idx]={modelId:m.id,endpointId:m.endpointId};
             save();renderModelBar();
+            // restore focus to the trigger of the just-rerendered pill
+            setTimeout(()=>{
+              const newPill=$('model-bar').querySelector('.mpill[data-idx="'+idx+'"] .mpill-trigger');
+              if(newPill)newPill.focus();
+            },0);
           });
           list.appendChild(item);
         });
@@ -2153,16 +2458,44 @@ function renderModelBar(){
     buildList('');
     searchIn.addEventListener('input',()=>buildList(searchIn.value));
 
-    trigger.addEventListener('click',e=>{
-      e.stopPropagation();
+    function openDD(){
       const isOpen=dd.classList.contains('open');
       closeAllModelDDs();
       if(!isOpen){
         dd.classList.add('open');
+        trigger.setAttribute('aria-expanded','true');
         searchIn.value='';
         buildList('');
         setTimeout(()=>searchIn.focus(),30);
       }
+    }
+    trigger.addEventListener('click',e=>{e.stopPropagation();openDD();});
+    trigger.addEventListener('keydown',e=>{
+      if(e.key==='Enter'||e.key===' '||e.key==='ArrowDown'){
+        e.preventDefault();
+        openDD();
+        if(e.key==='ArrowDown')setTimeout(()=>{
+          const first=list.querySelector('.mpill-item');if(first)first.focus();
+        },50);
+      }
+    });
+
+    // Keyboard nav inside the dropdown
+    dd.addEventListener('keydown',e=>{
+      const items=Array.from(list.querySelectorAll('.mpill-item'));
+      if(!items.length)return;
+      const focused=document.activeElement;
+      const i=items.indexOf(focused);
+      if(e.key==='ArrowDown'){e.preventDefault();(items[i+1]||items[0]).focus();}
+      else if(e.key==='ArrowUp'){e.preventDefault();(items[i-1]||items[items.length-1]).focus();}
+      else if(e.key==='Escape'){e.preventDefault();closeAllModelDDs();trigger.focus();}
+      else if(e.key==='Enter'&&i>=0){e.preventDefault();items[i].click();}
+    });
+    searchIn.addEventListener('keydown',e=>{
+      if(e.key==='ArrowDown'){
+        e.preventDefault();
+        const first=list.querySelector('.mpill-item');if(first)first.focus();
+      }else if(e.key==='Escape'){e.preventDefault();closeAllModelDDs();trigger.focus();}
     });
 
     dd.appendChild(searchIn);
@@ -2176,14 +2509,16 @@ function renderModelBar(){
       const x=document.createElement('button');
       x.className='mpill-x';
       x.textContent='×';
+      x.setAttribute('aria-label','Remove '+(sel.modelId||'model'));
+      x.title='Remove model';
       x.addEventListener('click',()=>{
         S.selModels.splice(idx,1);
         if(S.selModels.length<2&&S.cfg.synthesize){
           S.cfg.synthesize=false;
-          $('synth-btn').classList.remove('active');
           setStatus('warn','Synthesis disabled — requires 2+ models');
         }
         renderModelBar();save();
+        updateSynthState();
       });
       pill.appendChild(x);
     }
@@ -2191,20 +2526,55 @@ function renderModelBar(){
     $('model-bar').insertBefore(pill,addBtn);
   });
 
-  // Keep synth button in sync with model count
-  const synthBtn=$('synth-btn');
-  if(S.selModels.length<2){
-    if(S.cfg.synthesize){S.cfg.synthesize=false;save();}
-    synthBtn.classList.remove('active');
-    synthBtn.style.opacity='0.45';
-    synthBtn.style.cursor='not-allowed';
-    synthBtn.title='Synthesis requires 2+ models';
-  }else{
-    synthBtn.style.opacity='';
-    synthBtn.style.cursor='';
-    synthBtn.title='Toggle response synthesis';
-    synthBtn.classList.toggle('active',!!S.cfg.synthesize);
-  }
+  // Wire drag handlers (idempotent — once per render is fine since pills are recreated)
+  initPillDrag();
+
+  updateSynthState();
+  updateStatusBar();
+}
+
+// ── Drag-to-reorder for model pills ──
+let _pillDragIdx=null;
+function initPillDrag(){
+  const bar=$('model-bar');
+  bar.querySelectorAll('.mpill').forEach(pill=>{
+    pill.addEventListener('dragstart',e=>{
+      _pillDragIdx=parseInt(pill.dataset.idx);
+      pill.classList.add('dragging');
+      e.dataTransfer.effectAllowed='move';
+      try{e.dataTransfer.setData('text/plain',String(_pillDragIdx));}catch{}
+    });
+    pill.addEventListener('dragend',()=>{
+      pill.classList.remove('dragging');
+      bar.querySelectorAll('.mpill').forEach(p=>p.classList.remove('drop-before','drop-after'));
+      _pillDragIdx=null;
+    });
+    pill.addEventListener('dragover',e=>{
+      if(_pillDragIdx===null)return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect='move';
+      const overIdx=parseInt(pill.dataset.idx);
+      if(overIdx===_pillDragIdx)return;
+      const r=pill.getBoundingClientRect();
+      const before=(e.clientX-r.left)<r.width/2;
+      bar.querySelectorAll('.mpill').forEach(p=>p.classList.remove('drop-before','drop-after'));
+      pill.classList.add(before?'drop-before':'drop-after');
+    });
+    pill.addEventListener('drop',e=>{
+      if(_pillDragIdx===null)return;
+      e.preventDefault();
+      const overIdx=parseInt(pill.dataset.idx);
+      if(overIdx===_pillDragIdx)return;
+      const r=pill.getBoundingClientRect();
+      const before=(e.clientX-r.left)<r.width/2;
+      let target=before?overIdx:overIdx+1;
+      const moved=S.selModels.splice(_pillDragIdx,1)[0];
+      if(_pillDragIdx<target)target--;
+      S.selModels.splice(target,0,moved);
+      save();
+      renderModelBar();
+    });
+  });
 }
 
 document.addEventListener('click',()=>closeAllModelDDs());
@@ -2236,10 +2606,43 @@ function delChat(id){
   const ids=sortedIds(null);S.activeChat=ids.length?ids[0]:null;
   save();renderSB();renderMsgs();
 }
-function moveChat(cid,fid){if(S.chats[cid]){S.chats[cid].folderId=fid||null;save(cid);renderSB();if(S.activeProject)renderProjectView();}}
 function renameChat(id,t){if(S.chats[id]){S.chats[id].title=t||'New chat';save(id);renderSB();if(S.activeProject)renderProjectView();}}
+function renameFolder(id,name){
+  if(!S.folders[id])return;
+  S.folders[id].name=name||'Project';
+  save();
+  renderSB();
+  renderProjectView();
+}
+
+// Show/hide rename pencil on hover over the title area
+$('pv-title-wrap').addEventListener('mouseenter',()=>{ const b=$('pv-rename-btn'); if(b)b.style.opacity='1'; });
+$('pv-title-wrap').addEventListener('mouseleave',()=>{ const b=$('pv-rename-btn'); if(b)b.style.opacity='0'; });
+$('pv-title').addEventListener('dblclick',()=>{
+  if(!S.activeProject)return;
+  const folder=S.folders[S.activeProject];if(!folder)return;
+  _renTarget={type:'folder',id:S.activeProject};
+  _openRenameModal('folder',folder.name||'');
+});
+$('pv-rename-btn').addEventListener('click',e=>{
+  e.stopPropagation();
+  if(!S.activeProject)return;
+  const folder=S.folders[S.activeProject];
+  if(!folder)return;
+  _renTarget={type:'folder',id:S.activeProject};
+  _openRenameModal('folder',folder.name||'');
+});
 function newFolder(name){const id=uid();S.folders[id]={name,collapsed:false,createdAt:Date.now()};S.projectsExpanded=true;save();renderSB();}
 function delFolder(id){Object.values(S.chats).forEach(c=>{if(c.folderId===id)c.folderId=null;});delete S.folders[id];if(S.activeProject===id){S.activeProject=null;}save();renderSB();renderMsgs();}
+function moveChat(chatId,folderId){
+  const c=S.chats[chatId];if(!c)return;
+  c.folderId=folderId||null;
+  c.updatedAt=Date.now();
+  save();renderSB();
+  // Refresh project view if open and the chat moved out of/into the active project
+  if(S.activeProject&&typeof renderProjectView==='function')renderProjectView();
+  setStatus('ok',folderId?`Moved to ${S.folders[folderId]?.name||'project'}`:'Moved to root');
+}
 function openNewProjectModal(){$('fold-in').value='';$('fold-ov').classList.add('open');setTimeout(()=>$('fold-in').focus(),50);}
 
 // ═══════════════════════════════════════════
@@ -2337,6 +2740,7 @@ function renderProjectView(){
   const folder=S.folders[fid];
   if(!folder)return;
   $('pv-title').textContent=folder.name||'Project';
+  $('pv-title').title='Double-click to rename';
   const chatIds=sortedIds(fid);
   $('pv-count').textContent=chatIds.length===1?'1 chat':chatIds.length+' chats';
   const wrap=$('pv-chats');wrap.innerHTML='';
@@ -2398,13 +2802,38 @@ function makeChatEl(cid){
 let ctxChat=null,ctxFolder=null;
 function showCtx(e,cid,fid){
   ctxChat=cid;ctxFolder=fid;
-  $('ctx-rename').style.display=cid?'':'none';$('ctx-move').style.display=cid?'':'none';
+  // Rename works for both chats and folders/projects; Move only applies to chats
+  $('ctx-rename').style.display=(cid||fid)?'':'none';
+  $('ctx-move').style.display=cid?'':'none';
   const m=$('ctx');
   m.style.left=Math.min(e.clientX,innerWidth-180)+'px';m.style.top=Math.min(e.clientY,innerHeight-130)+'px';
   m.classList.add('show');
+  // a11y: focus first visible menu item
+  setTimeout(()=>{
+    const first=Array.from(m.querySelectorAll('.ci')).find(el=>el.style.display!=='none');
+    if(first)first.focus();
+  },10);
 }
 document.addEventListener('click',()=>$('ctx').classList.remove('show'));
-$('ctx-rename').addEventListener('click',()=>{if(!ctxChat)return;$('ren-in').value=S.chats[ctxChat]?.title||'';$('ren-ov').classList.add('open');setTimeout(()=>$('ren-in').focus(),50);});
+function _openRenameModal(kind,currentName){
+  const isProject=kind==='folder';
+  $('ren-title').textContent=isProject?'Rename Project':'Rename Chat';
+  $('ren-label').textContent=isProject?'Project name':'Title';
+  $('ren-in').placeholder=isProject?'Project name…':'Chat title…';
+  $('ren-in').value=currentName||'';
+  $('ren-ov').classList.add('open');
+  setTimeout(()=>{$('ren-in').focus();$('ren-in').select();},50);
+}
+$('ctx-rename').addEventListener('click',()=>{
+  if(ctxChat){
+    _renTarget=null;
+    _openRenameModal('chat',S.chats[ctxChat]?.title||'');
+  }else if(ctxFolder){
+    const folder=S.folders[ctxFolder];if(!folder)return;
+    _renTarget={type:'folder',id:ctxFolder};
+    _openRenameModal('folder',folder.name||'');
+  }
+});
 $('ctx-move').addEventListener('click',()=>{if(!ctxChat)return;renderMoveModal();$('mv-ov').classList.add('open');});
 $('ctx-del').addEventListener('click',()=>{
   if(ctxChat||ctxFolder){
@@ -2418,15 +2847,25 @@ $('del-ok').addEventListener('click',()=>{
   if(ctxChat)delChat(ctxChat);else if(ctxFolder)delFolder(ctxFolder);
 });
 $('del-ov').addEventListener('click',e=>{if(e.target===$('del-ov'))$('del-ov').classList.remove('open');});
-$('ren-ok').addEventListener('click',()=>{if(ctxChat)renameChat(ctxChat,$('ren-in').value.trim());$('ren-ov').classList.remove('open');});
-$('ren-cancel').addEventListener('click',()=>$('ren-ov').classList.remove('open'));
+let _renTarget=null;
+$('ren-ok').addEventListener('click',()=>{
+  const val=$('ren-in').value.trim();
+  if(_renTarget&&_renTarget.type==='folder'){
+    renameFolder(_renTarget.id,val);
+  }else if(ctxChat){
+    renameChat(ctxChat,val);
+  }
+  _renTarget=null;
+  $('ren-ov').classList.remove('open');
+});
+$('ren-cancel').addEventListener('click',()=>{_renTarget=null;$('ren-ov').classList.remove('open');});
 $('ren-in').addEventListener('keydown',e=>{if(e.key==='Enter')$('ren-ok').click();});
 let mvDest=null;
 function renderMoveModal(){
   mvDest=S.chats[ctxChat]?.folderId||null;
   const c=$('mv-opts');c.innerHTML='';
   const none=document.createElement('div');none.className='f-opt'+(mvDest===null?' sel':'');
-  none.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg> No folder (root)';
+  none.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg> No project (root)';
   none.addEventListener('click',()=>{mvDest=null;c.querySelectorAll('.f-opt').forEach(x=>x.classList.remove('sel'));none.classList.add('sel');});
   c.appendChild(none);
   Object.entries(S.folders).forEach(([fid,f])=>{
@@ -2491,19 +2930,31 @@ function applyInlineMarkdown(s){
   const links=[];
   const stash=(html)=>{links.push(html);return '\x04LK'+(links.length-1)+'\x04';};
   s=linkifyText(s,true,stash);
+  s=s.replace(/\*\*\*(.+?)\*\*\*/g,'<strong><em>$1</em></strong>');
   s=s.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
   s=s.replace(/__(.+?)__/g,'<strong>$1</strong>');
+  s=s.replace(/~~(.+?)~~/g,'<del>$1</del>');
   s=s.replace(/\*([^*\n]+)\*/g,'<em>$1</em>');
-  s=s.replace(/_([^_\n]+)_/g,'<em>$1</em>');
+  s=s.replace(/\b_([^_\n]+)_\b/g,'<em>$1</em>');
   s=s.replace(/\x04LK(\d+)\x04/g,(m,n)=>links[+n]);
   return s;
 }
 
 function renderContent(t){
   if(!t)return'';
+  // Normalise line endings — some models (esp. self-hosted Ollama) emit CRLF which
+  // breaks the multiline regexes below.
+  t=t.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  // Strip reasoning / chain-of-thought blocks that some models emit (Qwen3, DeepSeek-R1, etc.).
+  // Handles <think>…</think>, <thinking>…</thinking>, <reasoning>…</reasoning>.
+  // While streaming, an opened-but-not-yet-closed block is also suppressed so users don't
+  // momentarily see scratch reasoning before the real answer arrives.
+  t=t.replace(/<(think|thinking|reasoning)>[\s\S]*?<\/\1>\s*/gi,'');
+  t=t.replace(/<(think|thinking|reasoning)>[\s\S]*$/i,'');
   // Always extract code blocks first (kept even in plain-text mode — they're useful for every model).
   const codeBlocks=[];
-  let s=t.replace(/```([\w]*)\n?([\s\S]*?)```/g,(m,lang,code)=>{
+  // Accept langs with + - . # like c++, c#, objective-c, F#, etc.
+  let s=t.replace(/```([\w+\-.#]*)[ \t]*\r?\n([\s\S]*?)\r?\n?```[ \t]*(?=\n|$)/g,(m,lang,code)=>{
     const escaped=code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     codeBlocks.push('<div class="code-wrap"><button class="code-copy-btn" title="Copy code" aria-label="Copy code"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button><pre><code>'+escaped+'</code></pre></div>');
     return'\x02CB'+(codeBlocks.length-1)+'\x02';
@@ -2536,34 +2987,176 @@ function renderContent(t){
   const lines=s.split('\n');
   const out=[];
   let i=0;
+
+  // Helpers
+  const isTableSep=(ln)=>/^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?\s*$/.test(ln);
+  const isTableRow=(ln)=>/\|/.test(ln)&&!isTableSep(ln);
+  const splitRow=(ln)=>{
+    let t=ln.trim();
+    if(t.startsWith('|'))t=t.slice(1);
+    if(t.endsWith('|'))t=t.slice(0,-1);
+    // unescape \| inside cells
+    return t.split(/(?<!\\)\|/).map(c=>c.trim().replace(/\\\|/g,'|'));
+  };
+  const parseAlign=(sep)=>{
+    let t=sep.trim();
+    if(t.startsWith('|'))t=t.slice(1);
+    if(t.endsWith('|'))t=t.slice(0,-1);
+    return t.split('|').map(c=>{
+      const x=c.trim();
+      const L=x.startsWith(':'),R=x.endsWith(':');
+      return R&&L?'center':R?'right':'left';
+    });
+  };
+
+  // Recursive list parser. `baseIndent` = indent (in spaces) the caller is matching for top-level items.
+  // Returns [htmlString, nextLineIndex].
+  function parseList(startIdx,baseIndent,ordered){
+    const items=[];
+    let startNum=1;
+    let j=startIdx;
+    const bulletRE=ordered?/^(\d+)\. (.*)$/:/^[-*+] (.*)$/;
+    if(ordered){
+      const m=lines[j].slice(baseIndent).match(/^(\d+)\./);
+      if(m)startNum=parseInt(m[1],10);
+    }
+    while(j<lines.length){
+      const raw=lines[j];
+      // empty line: peek ahead — if next non-empty has same indent + bullet, continue; else stop list
+      if(raw.trim()===''){
+        let k=j+1;
+        while(k<lines.length&&lines[k].trim()==='')k++;
+        if(k>=lines.length)break;
+        const nextIndent=lines[k].match(/^(\s*)/)[1].length;
+        const nextStripped=lines[k].slice(nextIndent);
+        if(nextIndent===baseIndent&&bulletRE.test(nextStripped)){j=k;continue;}
+        break;
+      }
+      const indent=raw.match(/^(\s*)/)[1].length;
+      const stripped=raw.slice(indent);
+      if(indent<baseIndent)break;
+      if(indent===baseIndent){
+        const m=stripped.match(bulletRE);
+        if(!m)break;
+        // start a new <li>
+        let itemHtml=applyInlineMarkdown(m[ordered?2:1]);
+        j++;
+        // gather any nested list / continuation under this item
+        while(j<lines.length){
+          const r2=lines[j];
+          if(r2.trim()===''){
+            // possible blank line within item — peek ahead
+            let k=j+1;
+            while(k<lines.length&&lines[k].trim()==='')k++;
+            if(k>=lines.length)break;
+            const ni=lines[k].match(/^(\s*)/)[1].length;
+            const ns=lines[k].slice(ni);
+            if(ni>baseIndent&&(/^[-*+] /.test(ns)||/^\d+\. /.test(ns))){j=k;continue;}
+            if(ni===baseIndent&&bulletRE.test(ns)){j=k;break;}
+            break;
+          }
+          const i2=r2.match(/^(\s*)/)[1].length;
+          const s2=r2.slice(i2);
+          if(i2<=baseIndent)break;
+          // nested list?
+          if(/^[-*+] /.test(s2)){
+            const [nestedHtml,next]=parseList(j,i2,false);
+            itemHtml+=nestedHtml;j=next;continue;
+          }
+          if(/^\d+\. /.test(s2)){
+            const [nestedHtml,next]=parseList(j,i2,true);
+            itemHtml+=nestedHtml;j=next;continue;
+          }
+          // continuation text — append on a new line within the same <li>
+          itemHtml+='<br>'+applyInlineMarkdown(s2);
+          j++;
+        }
+        items.push('<li>'+itemHtml+'</li>');
+        continue;
+      }
+      // indent > baseIndent and we don't match here — shouldn't happen because parseList consumes its nests
+      break;
+    }
+    const tag=ordered?'ol':'ul';
+    const startAttr=(ordered&&startNum!==1)?` start="${startNum}"`:'';
+    return [`<${tag}${startAttr}>${items.join('')}</${tag}>`,j];
+  }
+
   while(i<lines.length){
     const line=lines[i];
     const tr=line.trim();
+    const indent=line.match(/^(\s*)/)[1].length;
+
+    // Headings (h1–h6)
+    if(/^###### (.+)/.test(tr)){out.push('<h6>'+applyInlineMarkdown(tr.slice(7))+'</h6>');i++;continue;}
+    if(/^##### (.+)/.test(tr)){out.push('<h5>'+applyInlineMarkdown(tr.slice(6))+'</h5>');i++;continue;}
+    if(/^#### (.+)/.test(tr)){out.push('<h4>'+applyInlineMarkdown(tr.slice(5))+'</h4>');i++;continue;}
     if(/^### (.+)/.test(tr)){out.push('<h3>'+applyInlineMarkdown(tr.slice(4))+'</h3>');i++;continue;}
     if(/^## (.+)/.test(tr)){out.push('<h2>'+applyInlineMarkdown(tr.slice(3))+'</h2>');i++;continue;}
     if(/^# (.+)/.test(tr)){out.push('<h1>'+applyInlineMarkdown(tr.slice(2))+'</h1>');i++;continue;}
-    if(/^[-*+] /.test(tr)){
-      const items=[];
+
+    // Horizontal rule: ---, ***, ___ on their own line (3+ chars, optional spaces between)
+    if(/^(\s*[-*_]\s*){3,}$/.test(tr)&&tr.length>=3){
+      out.push('\x00BLOCK\x00<hr>\x00BLOCK\x00');i++;continue;
+    }
+
+    // Blockquote: one or more lines starting with `>` (consume contiguous block).
+    // NOTE: by this point > has been HTML-escaped to &gt; in the global pass above.
+    if(/^&gt;\s?/.test(tr)){
+      const bqLines=[];
       while(i<lines.length){
         const ct=lines[i].trim();
-        if(/^[-*+] /.test(ct)){items.push('<li>'+applyInlineMarkdown(ct.replace(/^[-*+] /,''))+'</li>');i++;}
-        else if(ct===''&&i+1<lines.length&&/^[-*+] /.test(lines[i+1].trim())){i++;} // skip blank line between items
+        if(/^&gt;\s?/.test(ct)){bqLines.push(ct.replace(/^&gt;\s?/,''));i++;}
+        else if(ct===''&&i+1<lines.length&&/^&gt;\s?/.test(lines[i+1].trim())){bqLines.push('');i++;}
         else break;
       }
-      out.push('<ul>'+items.join('')+'</ul>');continue;
+      const inner=bqLines.map(ln=>applyInlineMarkdown(ln)).join('<br>');
+      out.push('\x00BLOCK\x00<blockquote>'+inner+'</blockquote>\x00BLOCK\x00');continue;
+    }
+
+    // Tables: header row + separator row + body rows (pipes required)
+    if(isTableRow(line)&&i+1<lines.length&&isTableSep(lines[i+1])){
+      const headers=splitRow(line);
+      const aligns=parseAlign(lines[i+1]);
+      const bodyRows=[];
+      let k=i+2;
+      while(k<lines.length&&isTableRow(lines[k])){
+        bodyRows.push(splitRow(lines[k]));
+        k++;
+      }
+      let tbl='<div class="md-table-wrap"><table class="md-table"><thead><tr>';
+      headers.forEach((h,ci)=>{
+        const al=aligns[ci]||'left';
+        tbl+=`<th${al!=='left'?` style="text-align:${al}"`:''}>${applyInlineMarkdown(h)}</th>`;
+      });
+      tbl+='</tr></thead><tbody>';
+      bodyRows.forEach(row=>{
+        tbl+='<tr>';
+        // pad/truncate row to header length
+        for(let ci=0;ci<headers.length;ci++){
+          const cell=row[ci]||'';
+          const al=aligns[ci]||'left';
+          tbl+=`<td${al!=='left'?` style="text-align:${al}"`:''}>${applyInlineMarkdown(cell)}</td>`;
+        }
+        tbl+='</tr>';
+      });
+      tbl+='</tbody></table></div>';
+      out.push('\x00BLOCK\x00'+tbl+'\x00BLOCK\x00');
+      i=k;continue;
+    }
+
+    // Lists (with nesting support)
+    if(/^[-*+] /.test(tr)){
+      const [html,next]=parseList(i,indent,false);
+      out.push('\x00BLOCK\x00'+html+'\x00BLOCK\x00');
+      i=next;continue;
     }
     if(/^\d+\. /.test(tr)){
-      const startMatch=tr.match(/^(\d+)\./);
-      const startNum=startMatch?parseInt(startMatch[1],10):1;
-      const items=[];
-      while(i<lines.length){
-        const ct=lines[i].trim();
-        if(/^\d+\. /.test(ct)){items.push('<li>'+applyInlineMarkdown(ct.replace(/^\d+\. /,''))+'</li>');i++;}
-        else if(ct===''&&i+1<lines.length&&/^\d+\. /.test(lines[i+1].trim())){i++;} // skip blank line between items
-        else break;
-      }
-      out.push('<ol'+(startNum!==1?` start="${startNum}"`:'')+'>'+items.join('')+'</ol>');continue;
+      const [html,next]=parseList(i,indent,true);
+      out.push('\x00BLOCK\x00'+html+'\x00BLOCK\x00');
+      i=next;continue;
     }
+
     if(/^\x02CB\d+\x02$/.test(tr)){out.push('\x00BLOCK\x00'+tr+'\x00BLOCK\x00');i++;continue;}
     if(tr===''){out.push('');i++;continue;}
     out.push(applyInlineMarkdown(tr));i++;
@@ -2575,7 +3168,7 @@ function renderContent(t){
     const part=out[j];
     if(!part){flushP();}
     else if(/^\x00BLOCK\x00/.test(part)){flushP();html+=part.replace(/\x00BLOCK\x00/g,'');}
-    else if(/^<(h[1-3]|ul|ol)/.test(part)){flushP();html+=part;}
+    else if(/^<h[1-6]/.test(part)){flushP();html+=part;}
     else{pBuf.push(part);}
   }
   flushP();
@@ -2655,8 +3248,18 @@ function appendAI(responses,streaming,messageIndex){
     const row=document.createElement('div');row.className='multi-row';
     responses.forEach((r,i)=>{
       const card=document.createElement('div');card.className='ai-card';
+      card.dataset.mc=i%4;
       const ep=S.endpoints.find(e=>e.id===r.endpointId)?.name||'';
-      card.innerHTML=`<div class="ai-card-head"><div class="model-dot"></div><span>${esc(r.modelId)}</span><span class="ai-card-ep">${esc(ep)}</span></div><div class="ai-card-body" data-i="${i}">${renderContent(r.content)}</div>`;
+      const showRemove=!streaming&&Number.isInteger(messageIndex);
+      const rmBtn=showRemove?`<button class="ai-card-rm" title="Remove this response" aria-label="Remove ${esc(r.modelId)} response">×</button>`:'';
+      card.innerHTML=`<div class="ai-card-head"><div class="model-dot"></div><span>${esc(r.modelId)}</span><span class="ai-card-ep">${esc(ep)}</span>${rmBtn}</div><div class="ai-card-body" data-i="${i}">${renderContent(r.content)}</div>`;
+      if(showRemove){
+        const btn=card.querySelector('.ai-card-rm');
+        if(btn)btn.addEventListener('click',ev=>{
+          ev.stopPropagation();
+          removeModelResponse(messageIndex,i);
+        });
+      }
       if(streaming){const bd=card.querySelector('.ai-card-body');const c=document.createElement('span');c.className='cur';c.dataset.i=i;bd.appendChild(c);}
       else if(Number.isInteger(messageIndex)){
         const bd=card.querySelector('.ai-card-body');
@@ -2739,11 +3342,19 @@ async function generateResponse(txt,apiMsgs,opts={}){
   const done=new Array(total).fill(false);
   S.aborts={};
 
+  // v3: latency tracking for status bar
+  const turnStart=Date.now();
+  _latency.current=selModels.map(()=>({start:turnStart,firstChunk:null,end:null}));
+  startLatencyTicker();
+  renderLatency();
+
   function onModelDone(idx){
     done[idx]=true;
+    if(_latency.current[idx])_latency.current[idx].end=Date.now();
     const n=done.filter(Boolean).length;
     if(n<total)setStatus('busy',`Waiting for models… (${n} / ${total} done)`);
     else setStatus('busy',total>1&&S.cfg.synthesize?'All models responded — synthesizing…':'Finalising…');
+    renderLatency();
   }
 
   await Promise.allSettled(selModels.map((sel,idx)=>{
@@ -2751,6 +3362,8 @@ async function generateResponse(txt,apiMsgs,opts={}){
     const ctrl=new AbortController();S.aborts[idx]=ctrl;
     return streamOne(ep,sel.modelId,apiMsgs,idx,acc,bubble,ctrl,onModelDone);
   }));
+  stopLatencyTicker();
+  renderLatency();
   bubble.querySelectorAll('.cur').forEach(c=>c.remove());
   const finalR=selModels.map((s,i)=>({modelId:s.modelId,endpointId:s.endpointId,content:acc[i]}));
   // ── SYNTHESIS MODE ──
@@ -2807,6 +3420,8 @@ async function streamOne(ep,modelId,apiMsgs,idx,acc,bubble,ctrl,onModelDone){
       const reader=r.body.getReader();const dec=new TextDecoder();let buf='';let reqTok=0;
       while(true){
         const{done,value}=await reader.read();if(done)break;
+        // v3: stamp firstChunk on the very first byte received
+        if(_latency.current[idx]&&_latency.current[idx].firstChunk==null){_latency.current[idx].firstChunk=Date.now();}
         buf+=dec.decode(value,{stream:true});
         const lines=buf.split('\n');buf=lines.pop();
         for(const line of lines){
@@ -2895,6 +3510,8 @@ async function streamOneGemini(ep,modelId,apiMsgs,idx,acc,bubble,ctrl,onModelDon
           }
           break;
         }
+        // v3: stamp firstChunk on the very first byte received
+        if(_latency.current[idx]&&_latency.current[idx].firstChunk==null){_latency.current[idx].firstChunk=Date.now();}
         buf+=dec.decode(value,{stream:true});
         const lines=buf.split('\n');buf=lines.pop();
         for(const line of lines){
@@ -2949,7 +3566,17 @@ async function runSynthesis(userTxt,modelResponses,apiMsgs,chat,messageIndex,raw
   modelResponses.forEach((r,ri)=>{
     const ep=S.endpoints.find(e=>e.id===r.endpointId)?.name||'';
     const card=document.createElement('div');card.className='synth-mini-card';
-    card.innerHTML=`<div class="synth-mini-card-head"><div class="model-dot" style="width:6px;height:6px;flex-shrink:0"></div><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.modelId)}</span><span style="margin-left:auto;flex-shrink:0;font-size:11px;opacity:.6">${esc(ep)}</span></div><div class="synth-mini-card-body">${renderContent(r.content)}</div>`;
+    card.dataset.mc=ri%4;
+    const showRemove=Number.isInteger(messageIndex);
+    const rmBtn=showRemove?`<button class="ai-card-rm" title="Remove this response" aria-label="Remove ${esc(r.modelId)} response">×</button>`:'';
+    card.innerHTML=`<div class="synth-mini-card-head"><div class="model-dot" style="width:6px;height:6px;flex-shrink:0"></div><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.modelId)}</span><span style="margin-left:auto;flex-shrink:0;font-size:11px;opacity:.6">${esc(ep)}</span>${rmBtn}</div><div class="synth-mini-card-body">${renderContent(r.content)}</div>`;
+    if(showRemove){
+      const btn=card.querySelector('.ai-card-rm');
+      if(btn)btn.addEventListener('click',ev=>{
+        ev.stopPropagation();
+        removeModelResponse(messageIndex,ri);
+      });
+    }
     miniCards.appendChild(card);
   });
   sourcesBody.appendChild(miniCards);
@@ -3077,10 +3704,20 @@ function appendSynthMsg(msg,streaming,messageIndex){
   const sourcesBody=document.createElement('div');sourcesBody.className='synth-sources-body';
   sourcesHd.addEventListener('click',()=>{const open=sourcesBody.classList.toggle('open');sourcesHd.classList.toggle('open',open);});
   const miniCards=document.createElement('div');miniCards.className='synth-mini-cards';
-  responses.forEach(r=>{
+  responses.forEach((r,ri)=>{
     const ep=S.endpoints.find(e=>e.id===r.endpointId)?.name||'';
     const card=document.createElement('div');card.className='synth-mini-card';
-    card.innerHTML=`<div class="synth-mini-card-head"><div class="model-dot" style="width:6px;height:6px;flex-shrink:0"></div><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.modelId)}</span><span style="margin-left:auto;flex-shrink:0;font-size:11px;opacity:.6">${esc(ep)}</span></div><div class="synth-mini-card-body">${renderContent(r.content)}</div>`;
+    card.dataset.mc=ri%4;
+    const showRemove=Number.isInteger(messageIndex);
+    const rmBtn=showRemove?`<button class="ai-card-rm" title="Remove this response" aria-label="Remove ${esc(r.modelId)} response">×</button>`:'';
+    card.innerHTML=`<div class="synth-mini-card-head"><div class="model-dot" style="width:6px;height:6px;flex-shrink:0"></div><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.modelId)}</span><span style="margin-left:auto;flex-shrink:0;font-size:11px;opacity:.6">${esc(ep)}</span>${rmBtn}</div><div class="synth-mini-card-body">${renderContent(r.content)}</div>`;
+    if(showRemove){
+      const btn=card.querySelector('.ai-card-rm');
+      if(btn)btn.addEventListener('click',ev=>{
+        ev.stopPropagation();
+        removeModelResponse(messageIndex,ri);
+      });
+    }
     miniCards.appendChild(card);
   });
   sourcesBody.appendChild(miniCards);
@@ -3249,6 +3886,7 @@ function syncWsBtn(){
   $('ws-btn').classList.toggle('active',en);
   const n=countEnabledProviders();
   const note=$('ws-dd-status');
+  if(typeof updateStatusBar==='function')updateStatusBar();
   if(!note)return;
   if(!n){note.textContent='No providers configured. Click below to set up.';}
   else{const names=[];const p=S.webSearch?.providers||{};if(p.google?.enabled&&p.google.apiKey&&p.google.cx)names.push('Google');if(p.bing?.enabled&&p.bing.apiKey)names.push('Bing');if(p.duckduckgo?.enabled)names.push('DuckDuckGo');if(p.searxng?.enabled&&p.searxng.url)names.push('SearXNG');if(p.brave?.enabled&&p.brave.apiKey)names.push('Brave');if(p.tavily?.enabled&&p.tavily.apiKey)names.push('Tavily');if(p.custom?.enabled&&p.custom.url)names.push('Custom');note.textContent=names.join(', ')+' active'+(en?' — searching on every message':' — enable toggle to activate');}
@@ -3528,8 +4166,8 @@ function renderEpList(){
       </div>
     </div>
     <div class="field" style="margin-bottom:10px"><label>Endpoint Name</label><input type="text" value="${esc(ep.name)}" placeholder="e.g. OpenAI, Ollama…" data-n="${i}"></div>
-    <div class="field" style="margin-bottom:10px"><label>Base URL</label><input type="text" value="${esc(ep.url)}" placeholder="https://api.openai.com/v1" data-u="${i}"><div class="fhint" style="margin-top:4px">OpenAI-compatible · Gemini: https://generativelanguage.googleapis.com/v1beta · NVIDIA NIM: https://integrate.api.nvidia.com/v1</div></div>
-    <div class="field" style="margin-bottom:0"><label>API Key</label><input type="password" value="${esc(ep.key)}" placeholder="sk-… or AIza… (Gemini) or nvapi-… (NVIDIA)" data-k="${i}"></div>`;
+    <div class="field" style="margin-bottom:10px"><label>Base URL</label><input type="text" value="${esc(ep.url)}" placeholder="https://api.openai.com/v1" data-u="${i}"><div class="fhint" style="margin-top:4px">OpenAI-compatible · Gemini: https://generativelanguage.googleapis.com/v1beta</div></div>
+    <div class="field" style="margin-bottom:0"><label>API Key</label><input type="password" value="${esc(ep.key)}" placeholder="sk-… or AIza… (Gemini)" data-k="${i}"></div>`;
     list.appendChild(c);
   });
   list.querySelectorAll('[data-d]').forEach(b=>b.addEventListener('click',()=>{S.endpoints.splice(parseInt(b.dataset.d),1);renderEpList();}));
@@ -3678,15 +4316,46 @@ document.getElementById('msgs').addEventListener('click',async e=>{
 });
 
 // ═══════════════════════════════════════════
-// WEB SEARCH TOGGLE
+// SYNTHESIS — discoverability (popover, coach mark, disabled state, active bar)
 // ═══════════════════════════════════════════
-$('synth-btn').addEventListener('click',()=>{
-  if(S.selModels.length<2){setStatus('warn','Synthesis requires 2+ models selected');return;}
+function updateSynthState(){
+  const btn=$('synth-btn');if(!btn)return;
+  const ok=S.selModels.length>=2;
+  if(!ok){
+    btn.setAttribute('aria-disabled','true');
+    btn.setAttribute('aria-checked','false');
+    btn.classList.remove('active');
+    if(S.cfg.synthesize){S.cfg.synthesize=false;}
+  }else{
+    btn.setAttribute('aria-disabled','false');
+    btn.setAttribute('aria-checked',S.cfg.synthesize?'true':'false');
+    btn.classList.toggle('active',!!S.cfg.synthesize);
+  }
+  $('synth-active-bar').classList.toggle('show',!!S.cfg.synthesize&&ok);
+  updateStatusBar();
+}
+
+$('synth-btn').addEventListener('click',e=>{
+  const btn=$('synth-btn');
+  if(btn.getAttribute('aria-disabled')==='true'){
+    setStatus('warn','Add a second model to enable synthesis');
+    return;
+  }
   S.cfg.synthesize=!S.cfg.synthesize;
-  $('synth-btn').classList.toggle('active',S.cfg.synthesize);
   setStatus(S.cfg.synthesize?'ok':'',S.cfg.synthesize?'Synthesis ON — responses from all models will be merged':'Synthesis OFF');
+  updateSynthState();
   save();
 });
+// Hover popover (CSS-driven via .show class — manual control so it works alongside coach mark)
+$('synth-btn').addEventListener('mouseenter',()=>$('synth-pop-id').classList.add('show'));
+$('synth-btn').addEventListener('mouseleave',()=>$('synth-pop-id').classList.remove('show'));
+$('synth-btn').addEventListener('focus',()=>$('synth-pop-id').classList.add('show'));
+$('synth-btn').addEventListener('blur',()=>$('synth-pop-id').classList.remove('show'));
+$('ws-btn').addEventListener('mouseenter',()=>$('ws-pop-id').classList.add('show'));
+$('ws-btn').addEventListener('mouseleave',()=>$('ws-pop-id').classList.remove('show'));
+$('ws-btn').addEventListener('focus',()=>$('ws-pop-id').classList.add('show'));
+$('ws-btn').addEventListener('blur',()=>$('ws-pop-id').classList.remove('show'));
+
 $('ws-btn').addEventListener('click',e=>{e.stopPropagation();$('ws-dd').classList.toggle('open');syncWsBtn();});
 document.addEventListener('click',()=>$('ws-dd').classList.remove('open'));
 $('ws-dd').addEventListener('click',e=>e.stopPropagation());
@@ -3694,12 +4363,348 @@ $('ws-enabled').addEventListener('change',()=>{
   if(!S.webSearch)S.webSearch={...DWEB};
   S.webSearch.enabled=$('ws-enabled').checked;
   syncWsBtn();save();
+  updateStatusBar();
 });
 $('ws-cfg-btn').addEventListener('click',()=>{
   $('ws-dd').classList.remove('open');
   openSettings('tp-websearch');
 });
 $('ws-test-btn').addEventListener('click',()=>testWebSearch());
+
+// ═══════════════════════════════════════════
+// ACCESSIBILITY — focus trap + keyboard for context menu
+// ═══════════════════════════════════════════
+let _focusReturn=null;
+function trapFocus(modalEl){
+  const sel='button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])';
+  const items=Array.from(modalEl.querySelectorAll(sel)).filter(el=>!el.disabled&&el.offsetParent!==null);
+  if(!items.length)return;
+  function onKey(e){
+    if(e.key==='Tab'){
+      const first=items[0],last=items[items.length-1];
+      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+      else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+    }else if(e.key==='Escape'){
+      // Allow modals to be closed via Esc — find a cancel/close button generically
+      const cancel=modalEl.querySelector('.mclose, [id$="-cancel"], #su-skip');
+      if(cancel)cancel.click();
+      else if(modalEl.classList.contains('ov'))modalEl.classList.remove('open');
+    }
+  }
+  modalEl._trapHandler=onKey;
+  modalEl.addEventListener('keydown',onKey);
+  // Initial focus
+  const auto=modalEl.querySelector('[autofocus]')||items[0];
+  setTimeout(()=>auto.focus(),20);
+}
+function releaseTrap(modalEl){
+  if(modalEl&&modalEl._trapHandler){
+    modalEl.removeEventListener('keydown',modalEl._trapHandler);
+    delete modalEl._trapHandler;
+  }
+  if(_focusReturn&&document.body.contains(_focusReturn)){_focusReturn.focus();}
+  _focusReturn=null;
+}
+
+// Watch every .ov modal: install trap on open, release on close
+function _wireModalA11y(){
+  document.querySelectorAll('.ov').forEach(ov=>{
+    ov.setAttribute('role','dialog');
+    ov.setAttribute('aria-modal','true');
+    // backdrop click already handled in many cases; ensure escape works
+  });
+  // Mutation observer reacts to .open class changes
+  const mo=new MutationObserver(muts=>{
+    muts.forEach(m=>{
+      if(m.attributeName!=='class')return;
+      const t=m.target;
+      if(!t.classList||!t.classList.contains('ov'))return;
+      const wasOpen=(m.oldValue||'').includes('open');
+      const isOpen=t.classList.contains('open');
+      if(!wasOpen&&isOpen){
+        _focusReturn=document.activeElement;
+        trapFocus(t);
+      }else if(wasOpen&&!isOpen){
+        releaseTrap(t);
+      }
+    });
+  });
+  document.querySelectorAll('.ov').forEach(ov=>{
+    mo.observe(ov,{attributes:true,attributeOldValue:true,attributeFilter:['class']});
+  });
+}
+
+// Context menu keyboard navigation
+(function initCtxA11y(){
+  const ctx=$('ctx');
+  document.addEventListener('keydown',e=>{
+    if(!ctx.classList.contains('show'))return;
+    const items=Array.from(ctx.querySelectorAll('.ci')).filter(el=>el.style.display!=='none');
+    const i=items.indexOf(document.activeElement);
+    if(e.key==='ArrowDown'){e.preventDefault();(items[i+1]||items[0]).focus();}
+    else if(e.key==='ArrowUp'){e.preventDefault();(items[i-1]||items[items.length-1]).focus();}
+    else if(e.key==='Escape'){e.preventDefault();ctx.classList.remove('show');}
+    else if(e.key==='Enter'&&i>=0){e.preventDefault();items[i].click();}
+  });
+})();
+
+// Global keyboard shortcuts
+document.addEventListener('keydown',e=>{
+  // Ignore typing inside inputs/textarea (but Esc should always work)
+  const inField=/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName||'')
+    ||document.activeElement?.isContentEditable;
+  if(e.key==='Escape'){
+    // Close any open dropdown/menus
+    closeAllModelDDs();
+    $('ws-dd').classList.remove('open');
+    $('ctx').classList.remove('show');
+  }
+  // Esc-only above; rest require modifier
+  const mod=e.metaKey||e.ctrlKey;
+  if(!mod||inField)return;
+  // Cmd/Ctrl+/: focus the user input
+  if(e.key==='/'){e.preventDefault();$('user-inp').focus();}
+});
+
+// ═══════════════════════════════════════════
+// SLASH COMMANDS
+// ═══════════════════════════════════════════
+function getSlashCommands(){
+  // Initialise on first access — once set, the user owns the array fully (deletes persist).
+  if(!Array.isArray(S.slashCommands)){
+    S.slashCommands=DEFAULT_SLASH_COMMANDS.map(c=>({...c}));
+  }
+  return S.slashCommands;
+}
+
+let _scOpen=false;
+let _scFocusIdx=-1;       // index of currently keyboard-focused list item
+let _scQueryStart=-1;     // textarea position where the current "/..." token starts (-1 = no active token)
+let _scFiltered=[];       // current filtered list
+let _scCreating=false;    // true when the inline create form is shown
+
+function _scHide(){
+  _scOpen=false;_scFocusIdx=-1;_scQueryStart=-1;_scCreating=false;
+  $('sc-pop').classList.remove('open');
+  $('sc-form').style.display='none';
+  $('sc-list').style.display='';
+  $('sc-create').style.display='';
+  $('sc-err').textContent='';
+}
+
+function _scShow(){
+  _scOpen=true;
+  $('sc-pop').classList.add('open');
+}
+
+// Detects whether the textarea cursor is currently inside a "/word" token.
+// Returns the start index of the slash, or -1 if no active slash token at the cursor.
+function _scDetectQuery(){
+  const ta=$('user-inp');
+  const v=ta.value;
+  const c=ta.selectionStart;
+  if(c==null)return -1;
+  // Walk backwards from cursor to find a / that starts a fresh token (start of string or after whitespace)
+  let i=c-1;
+  while(i>=0){
+    const ch=v[i];
+    if(ch==='/'){
+      // Must be at start of input or preceded by whitespace
+      if(i===0||/\s/.test(v[i-1]))return i;
+      return -1;
+    }
+    if(/\s/.test(ch))return -1;
+    i--;
+  }
+  return -1;
+}
+
+function _scRenderList(){
+  const list=$('sc-list');
+  list.innerHTML='';
+  const cmds=getSlashCommands();
+  const ta=$('user-inp');
+  const q=(_scQueryStart>=0)?ta.value.slice(_scQueryStart,ta.selectionStart).toLowerCase():'/';
+  _scFiltered=cmds.filter(c=>c.trigger.toLowerCase().startsWith(q)||q==='/');
+  if(!_scFiltered.length){
+    const e=document.createElement('div');
+    e.className='sc-empty';
+    e.textContent=cmds.length?'No commands match — press Esc or use Create below':'No commands yet — Create your first one below';
+    list.appendChild(e);
+    _scFocusIdx=-1;
+    return;
+  }
+  // Clamp focus index
+  if(_scFocusIdx<0||_scFocusIdx>=_scFiltered.length)_scFocusIdx=0;
+  _scFiltered.forEach((c,i)=>{
+    const item=document.createElement('div');
+    item.className='sc-item'+(i===_scFocusIdx?' focused':'');
+    item.setAttribute('role','option');
+    item.setAttribute('aria-selected',i===_scFocusIdx?'true':'false');
+    const preview=(c.template||'').replace(/\n/g,' ').slice(0,80);
+    item.innerHTML=
+      '<span class="sc-item-trig">'+esc(c.trigger)+'</span>'+
+      '<span class="sc-item-label">'+esc(c.label||c.trigger.replace(/^\//,''))+'</span>'+
+      '<span class="sc-item-tpl">'+esc(preview)+'</span>'+
+      '<button class="sc-item-rm" title="Delete command" aria-label="Delete '+esc(c.trigger)+'">×</button>';
+    item.addEventListener('mousedown',ev=>{
+      // mousedown (not click) so we run before textarea blur kills the popup
+      if(ev.target.classList.contains('sc-item-rm')){
+        ev.preventDefault();ev.stopPropagation();
+        _scDeleteCommand(c.id);
+        return;
+      }
+      ev.preventDefault();
+      _scApply(c);
+    });
+    item.addEventListener('mouseenter',()=>{_scFocusIdx=i;_scUpdateFocusUI();});
+    list.appendChild(item);
+  });
+}
+
+function _scUpdateFocusUI(){
+  const items=$('sc-list').querySelectorAll('.sc-item');
+  items.forEach((el,i)=>{
+    el.classList.toggle('focused',i===_scFocusIdx);
+    el.setAttribute('aria-selected',i===_scFocusIdx?'true':'false');
+  });
+  // Scroll into view if needed
+  const focused=items[_scFocusIdx];
+  if(focused)focused.scrollIntoView({block:'nearest'});
+}
+
+function _scApply(cmd){
+  const ta=$('user-inp');
+  const v=ta.value;
+  const c=ta.selectionStart||0;
+  // Find the end of the current /word token (next whitespace or end)
+  let end=c;
+  while(end<v.length&&!/\s/.test(v[end]))end++;
+  // Decision per spec: if the active token IS the only content (modulo whitespace),
+  // replace the entire input. Otherwise insert at cursor (replacing just the /word).
+  const tokenStart=_scQueryStart>=0?_scQueryStart:0;
+  const before=v.slice(0,tokenStart);
+  const after=v.slice(end);
+  const inputIsJustToken=before.trim()===''&&after.trim()==='';
+  let newVal,newCursor;
+  if(inputIsJustToken){
+    newVal=cmd.template;
+    newCursor=cmd.template.length;
+  }else{
+    newVal=before+cmd.template+after;
+    newCursor=before.length+cmd.template.length;
+  }
+  ta.value=newVal;
+  ta.setSelectionRange(newCursor,newCursor);
+  autoResize(ta);
+  _scHide();
+  ta.focus();
+}
+
+function _scDeleteCommand(id){
+  const cmds=getSlashCommands();
+  const idx=cmds.findIndex(c=>c.id===id);
+  if(idx<0)return;
+  cmds.splice(idx,1);
+  save();
+  _scRenderList();
+  setStatus('ok','Command deleted');
+}
+
+function _scShowCreateForm(){
+  _scCreating=true;
+  $('sc-list').style.display='none';
+  $('sc-create').style.display='none';
+  $('sc-form').style.display='';
+  $('sc-err').textContent='';
+  // Pre-fill the trigger if the user already typed something after `/`
+  const ta=$('user-inp');
+  const q=_scQueryStart>=0?ta.value.slice(_scQueryStart,ta.selectionStart):'/';
+  $('sc-name').value=q.length>1?q:'/';
+  $('sc-tpl').value='';
+  setTimeout(()=>{
+    const n=$('sc-name');n.focus();
+    // Place cursor at end so user can keep typing
+    n.setSelectionRange(n.value.length,n.value.length);
+  },20);
+}
+
+function _scSaveNew(){
+  const name=$('sc-name').value.trim();
+  const tpl=$('sc-tpl').value;
+  const err=$('sc-err');
+  if(!name||name==='/'){err.textContent='Trigger is required';return;}
+  const trig=name.startsWith('/')?name:'/'+name;
+  if(/\s/.test(trig)){err.textContent='Trigger cannot contain spaces';return;}
+  if(trig.length<2){err.textContent='Trigger must have at least one character after /';return;}
+  if(!tpl.trim()){err.textContent='Template cannot be empty';return;}
+  const cmds=getSlashCommands();
+  if(cmds.some(c=>c.trigger.toLowerCase()===trig.toLowerCase())){err.textContent='That trigger already exists';return;}
+  cmds.push({id:uid(),trigger:trig,label:trig.replace(/^\//,'').replace(/^\w/,m=>m.toUpperCase()),template:tpl});
+  save();
+  // After saving, return to the list view and apply the just-created command
+  _scCreating=false;
+  $('sc-form').style.display='none';
+  $('sc-list').style.display='';
+  $('sc-create').style.display='';
+  _scFocusIdx=cmds.length-1;  // focus the new one
+  _scRenderList();
+  setStatus('ok','Command created');
+}
+
+// Wire up textarea events for slash detection
+$('user-inp').addEventListener('input',()=>{
+  if(_scCreating)return;     // form is open — don't auto-update list while typing in name field
+  const start=_scDetectQuery();
+  if(start<0){if(_scOpen)_scHide();return;}
+  _scQueryStart=start;
+  if(!_scOpen)_scShow();
+  _scRenderList();
+});
+$('user-inp').addEventListener('keyup',e=>{
+  // Cursor may have moved without input firing (arrow keys); re-evaluate
+  if(_scCreating)return;
+  if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){
+    const start=_scDetectQuery();
+    if(start<0){if(_scOpen)_scHide();return;}
+    _scQueryStart=start;
+    if(!_scOpen){_scShow();_scRenderList();}
+  }
+});
+$('user-inp').addEventListener('keydown',e=>{
+  if(!_scOpen||_scCreating)return;
+  if(e.key==='ArrowDown'){e.preventDefault();_scFocusIdx=Math.min(_scFocusIdx+1,_scFiltered.length-1);_scUpdateFocusUI();}
+  else if(e.key==='ArrowUp'){e.preventDefault();_scFocusIdx=Math.max(_scFocusIdx-1,0);_scUpdateFocusUI();}
+  else if(e.key==='Enter'&&_scFiltered[_scFocusIdx]){e.preventDefault();_scApply(_scFiltered[_scFocusIdx]);}
+  else if(e.key==='Escape'){e.preventDefault();_scHide();}
+  else if(e.key==='Tab'&&_scFiltered[_scFocusIdx]){e.preventDefault();_scApply(_scFiltered[_scFocusIdx]);}
+},true);  // capture so we beat the existing Enter handler
+
+// Close popup when clicking outside the input area
+document.addEventListener('mousedown',e=>{
+  if(!_scOpen)return;
+  if($('sc-pop').contains(e.target)||$('user-inp').contains(e.target))return;
+  _scHide();
+});
+
+// Wire up create form
+$('sc-create').addEventListener('mousedown',e=>{e.preventDefault();_scShowCreateForm();});
+$('sc-form-cancel').addEventListener('click',()=>{
+  _scCreating=false;
+  $('sc-form').style.display='none';
+  $('sc-list').style.display='';
+  $('sc-create').style.display='';
+  $('user-inp').focus();
+});
+$('sc-form-save').addEventListener('click',_scSaveNew);
+$('sc-name').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){e.preventDefault();_scSaveNew();}
+  else if(e.key==='Escape'){e.preventDefault();$('sc-form-cancel').click();}
+});
+$('sc-tpl').addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();_scSaveNew();}
+  else if(e.key==='Escape'){e.preventDefault();$('sc-form-cancel').click();}
+});
 
 // ═══════════════════════════════════════════
 // INIT
@@ -3797,7 +4802,10 @@ $('ws-test-btn').addEventListener('click',()=>testWebSearch());
   renderModelBar();
   $('st-right').textContent=tokenRight();
   syncWsBtn();
-  $('synth-btn').classList.toggle('active',!!S.cfg.synthesize);
+  // v3: hook up modal a11y, refresh synth + status bar
+  _wireModalA11y();
+  updateSynthState();
+  updateStatusBar();
 })();
 </script>
 </body>
