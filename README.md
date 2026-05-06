@@ -170,6 +170,22 @@ Single-file architecture.
 
 ---
 
+# Migrating to a New Folder
+
+If you want to rename your existing storage folder or move your chats/configurations to a new folder:
+
+1. Use the **Export Data** option on the home page directly or navigate to **Settings → Data**
+2. Use **Export Data** to create a backup
+3. Rename your existing folder **or** create a new folder
+4. Use the **Import Data** option on the home page directly or navigate to **Settings → Data**
+5. Select the new folder location
+6. Import your exported backup
+7. Enter your existing password/passphrase
+
+Your chats, configurations, and encrypted data will be restored and accessible in the new folder.
+
+---
+
 # License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
