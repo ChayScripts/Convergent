@@ -666,6 +666,22 @@ button:focus-visible,
 .sc-form .btn-g:hover{background:var(--surf3)}
 .sc-form-err{color:var(--err);font-size:11.5px;margin-top:6px;min-height:14px}
 
+/* ── CORS Proxy section in settings ── */
+.proxy-section{margin-top:20px;border:1px solid var(--bdr);border-radius:10px;overflow:hidden}
+.proxy-hd{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surf2);border-bottom:1px solid var(--bdr);font-size:13px;font-weight:500;color:var(--txt2)}
+.proxy-hd svg{flex-shrink:0;color:var(--muted)}
+.proxy-hd span{flex:1}
+.proxy-toggle{position:relative;display:inline-flex;align-items:center;cursor:pointer;flex-shrink:0}
+.proxy-toggle input{position:absolute;opacity:0;width:0;height:0}
+.proxy-toggle-track{width:34px;height:19px;border-radius:10px;background:var(--bdr2);transition:background .2s;position:relative}
+.proxy-toggle-track::after{content:'';position:absolute;width:14px;height:14px;border-radius:50%;background:#fff;top:2.5px;left:2.5px;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.proxy-toggle input:checked+.proxy-toggle-track{background:var(--ok)}
+.proxy-toggle input:checked+.proxy-toggle-track::after{transform:translateX(15px)}
+.proxy-body{padding:12px 14px}
+.proxy-status{font-size:12px;padding:6px 10px;border-radius:6px;display:none}
+.proxy-status.ok{display:block;background:rgba(52,211,153,.1);color:var(--ok);border:1px solid rgba(52,211,153,.3)}
+.proxy-status.err{display:block;background:rgba(232,68,67,.1);color:var(--err);border:1px solid rgba(232,68,67,.3)}
+
 </style>
 </head>
 <body>
@@ -943,6 +959,27 @@ button:focus-visible,
         <div id="ep-list"></div>
         <button id="add-ep-btn">+ Add API Endpoint</button>
         <div style="margin-top:16px"><button class="btn btn-g" id="fetch-all-btn" style="width:100%">Fetch Models from All Endpoints</button></div>
+
+        <!-- CORS Proxy section — for NVIDIA NIM (and other CORS-blocked endpoints) -->
+        <div class="proxy-section" id="proxy-section">
+          <div class="proxy-hd">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            <span>CORS Proxy Server</span>
+            <label class="proxy-toggle" title="Enable proxy for NVIDIA NIM">
+              <input type="checkbox" id="proxy-enabled">
+              <span class="proxy-toggle-track"></span>
+            </label>
+          </div>
+          <div class="proxy-body" id="proxy-body">
+            <div class="field" style="margin-bottom:8px">
+              <label>Proxy URL</label>
+              <input type="text" id="proxy-url" placeholder="http://localhost:3030" autocomplete="off" spellcheck="false">
+              <div class="fhint" style="margin-top:5px">Required for NVIDIA NIM (CORS-blocked from browser). Run <code style="font-size:11px;padding:1px 5px;background:var(--surf3);border-radius:4px;color:var(--acc)">npx convergent-proxy --port 3030</code> in a terminal, then enable above.</div>
+            </div>
+            <div id="proxy-status" class="proxy-status"></div>
+            <button class="btn btn-g" id="proxy-test-btn" style="width:100%;margin-top:4px">Test Proxy Connection</button>
+          </div>
+        </div>
       </div>
 
       <div class="tpanel" id="tp-model">
@@ -1126,7 +1163,7 @@ button:focus-visible,
 const DCFG={timeout:120,temp:.7,topp:1,maxTokens:4096,ctxMsgs:40,freq:0,pres:0,stream:true,showUsage:true,stop:[],systemPrompt:'',synthesize:false,renderMarkdown:true};
 const DWEB={enabled:false,timeRange:'hour',providers:{google:{enabled:false,apiKey:'',cx:''},bing:{enabled:false,apiKey:''},duckduckgo:{enabled:false},searxng:{enabled:false,url:''},brave:{enabled:false,apiKey:''},tavily:{enabled:false,apiKey:''},custom:{enabled:false,url:'',apiKey:''}}};
 const S={cfg:{...DCFG},endpoints:[],models:[],folders:{},chats:{},activeChat:null,activeProject:null,projectsExpanded:true,projectsShowAll:false,recentChatsExpanded:true,
-         selModels:[],streaming:false,aborts:{},dirHandle:null,sbVisible:true,webSearch:{...DWEB},slashCommands:null};
+         selModels:[],streaming:false,aborts:{},dirHandle:null,sbVisible:true,webSearch:{...DWEB},slashCommands:null,corsProxy:{url:'http://localhost:3030',enabled:false}};
 
 // Built-in slash commands (used as defaults when slashCommands hasn't been initialised yet).
 // Once initialised, the user's array fully replaces these — including the ability to delete them.
@@ -1794,7 +1831,7 @@ async function changePassphraseFlow(){
 // Full snapshot (used for export/import and localStorage cache)
 function snapshot(){
   return{cfg:S.cfg,endpoints:S.endpoints,folders:S.folders,chats:S.chats,
-         activeChat:S.activeChat,selModels:S.selModels,sbVisible:S.sbVisible,webSearch:S.webSearch,projectsExpanded:S.projectsExpanded,recentChatsExpanded:S.recentChatsExpanded,slashCommands:S.slashCommands};
+         activeChat:S.activeChat,selModels:S.selModels,sbVisible:S.sbVisible,webSearch:S.webSearch,projectsExpanded:S.projectsExpanded,recentChatsExpanded:S.recentChatsExpanded,slashCommands:S.slashCommands,corsProxy:S.corsProxy};
 }
 // Index — chat metadata only. Rewritten whenever any chat changes (small file).
 function indexSnapshot(){
@@ -1817,7 +1854,8 @@ function configSnapshot(){
          projectsExpanded:S.projectsExpanded,
          recentChatsExpanded:S.recentChatsExpanded,
          webSearch:S.webSearch,
-         slashCommands:S.slashCommands};
+         slashCommands:S.slashCommands,
+         corsProxy:S.corsProxy};
 }
 // Per-chat snapshot — the heavy payload
 function chatSnapshot(id){
@@ -1840,6 +1878,7 @@ function applySnap(d){
   if(typeof d.recentChatsExpanded==='boolean')S.recentChatsExpanded=d.recentChatsExpanded;
   if(d.webSearch)S.webSearch={...DWEB,...d.webSearch,providers:{...DWEB.providers,...(d.webSearch.providers||{}),brave:{...DWEB.providers.brave,...(d.webSearch.providers?.brave||{})},tavily:{...DWEB.providers.tavily,...(d.webSearch.providers?.tavily||{})}}};
   if(Array.isArray(d.slashCommands))S.slashCommands=d.slashCommands;
+  if(d.corsProxy&&typeof d.corsProxy==='object')S.corsProxy={...S.corsProxy,...d.corsProxy};
 }
 // Apply a config.json payload (no chats in it)
 function applyConfig(c){
@@ -1853,6 +1892,7 @@ function applyConfig(c){
   if(typeof c.recentChatsExpanded==='boolean')S.recentChatsExpanded=c.recentChatsExpanded;
   if(c.webSearch)S.webSearch={...DWEB,...c.webSearch,providers:{...DWEB.providers,...(c.webSearch.providers||{}),brave:{...DWEB.providers.brave,...(c.webSearch.providers?.brave||{})},tavily:{...DWEB.providers.tavily,...(c.webSearch.providers?.tavily||{})}}};
   if(Array.isArray(c.slashCommands))S.slashCommands=c.slashCommands;
+  if(c.corsProxy&&typeof c.corsProxy==='object')S.corsProxy={...S.corsProxy,...c.corsProxy};
 }
 
 // ═══════════════════════════════════════════
@@ -2319,6 +2359,9 @@ $('user-inp').addEventListener('focus',()=>{if(searchActive)closeSearch();});
 function isGeminiEndpoint(ep){
   return /generativelanguage\.googleapis\.com/i.test(ep.url||'');
 }
+function isNvidiaEndpoint(ep){
+  return /integrate\.api\.nvidia\.com/i.test(ep.url||'');
+}
 async function fetchOneEpGemini(ep){
   try{
     const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),12000);
@@ -2332,9 +2375,44 @@ async function fetchOneEpGemini(ep){
       .filter(m=>m.id);
   }catch(e){console.warn(ep.name,e.message);return[];}
 }
+// NVIDIA NIM requires a CORS proxy because the browser cannot reach
+// integrate.api.nvidia.com directly from a file:// origin.
+// The proxy is a small local Node.js server (convergent-proxy.js).
+// If the proxy is not running, this function returns [] silently.
+async function fetchOneEpNvidia(ep){
+  const proxy=(S.corsProxy?.url||'').replace(/\/$/,'');
+  if(!proxy||!S.corsProxy?.enabled){
+    console.info('NVIDIA: CORS proxy not enabled — skipping model list');
+    return[];
+  }
+  try{
+    const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),8000);
+    // The proxy forwards: POST/GET to /proxy?url=<target>  with original headers in body or forwarded
+    const target=encodeURIComponent(ep.url.replace(/\/$/,'')+'/models');
+    const r=await fetch(`${proxy}/proxy?url=${target}`,{
+      method:'GET',
+      headers:{
+        'X-Api-Key':ep.key,
+        'X-Target-Auth':'Bearer '+ep.key,
+        'Accept':'application/json'
+      },
+      signal:ctrl.signal
+    });
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    return(d.data||d.models||[])
+      .map(m=>({id:m.id||m.name,endpointId:ep.id,epName:ep.name}))
+      .filter(m=>m.id);
+  }catch(e){
+    // Proxy unavailable (refused, timeout, etc.) — fail silently, return no models
+    console.info('NVIDIA proxy unavailable ('+e.message+') — no models loaded for '+ep.name);
+    return[];
+  }
+}
 async function fetchOneEp(ep){
   if(ep.enabled===false)return[];
   if(isGeminiEndpoint(ep))return fetchOneEpGemini(ep);
+  if(isNvidiaEndpoint(ep))return fetchOneEpNvidia(ep);
   try{
     const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),12000);
     const r=await fetch(ep.url.replace(/\/$/,'')+'/models',{headers:{'Authorization':'Bearer '+ep.key},signal:ctrl.signal});
@@ -2533,7 +2611,28 @@ function renderModelBar(){
   updateStatusBar();
 }
 
-// ── Drag-to-reorder for model pills ──
+// ── Proxy routing helper ──
+// Returns {url, headers} for a chat/completions call, routing NVIDIA through the CORS proxy.
+function buildChatFetchParams(ep,extraHeaders={}){
+  const base=ep.url.replace(/\/$/,'');
+  if(isNvidiaEndpoint(ep)&&S.corsProxy?.enabled&&S.corsProxy?.url){
+    const proxy=(S.corsProxy.url||'').replace(/\/$/,'');
+    const target=encodeURIComponent(base+'/chat/completions');
+    return{
+      url:`${proxy}/proxy?url=${target}`,
+      headers:{
+        'Content-Type':'application/json',
+        'X-Api-Key':ep.key,
+        'X-Target-Auth':'Bearer '+ep.key,
+        ...extraHeaders
+      }
+    };
+  }
+  return{
+    url:base+'/chat/completions',
+    headers:{'Authorization':'Bearer '+ep.key,'Content-Type':'application/json',...extraHeaders}
+  };
+}
 let _pillDragIdx=null;
 function initPillDrag(){
   const bar=$('model-bar');
@@ -3408,8 +3507,9 @@ async function streamOne(ep,modelId,apiMsgs,idx,acc,bubble,ctrl,onModelDone){
   if(stop.length)body.stop=stop;
   const timer=setTimeout(()=>ctrl.abort(),(S.cfg.timeout||120)*1000);
   try{
-    const r=await fetch(ep.url.replace(/\/$/,'')+'/chat/completions',{
-      method:'POST',headers:{'Authorization':'Bearer '+ep.key,'Content-Type':'application/json'},
+    const {url:fetchUrl,headers:fetchHeaders}=buildChatFetchParams(ep);
+    const r=await fetch(fetchUrl,{
+      method:'POST',headers:fetchHeaders,
       body:JSON.stringify(body),signal:ctrl.signal});
     clearTimeout(timer);
     if(!r.ok){const e=await r.text();throw new Error(`HTTP ${r.status}: ${e.slice(0,200)}`);}
@@ -3828,8 +3928,9 @@ async function streamOneSynth(ep,modelId,msgs,bodyEl,ctrl){
         max_tokens:S.cfg.maxTokens||4096,temperature:S.cfg.temp??0.7,top_p:S.cfg.topp??1,
         frequency_penalty:S.cfg.freq??0,presence_penalty:S.cfg.pres??0};
       if(stop.length)body.stop=stop;
-      const r=await fetch(ep.url.replace(/\/$/,'')+'/chat/completions',{
-        method:'POST',headers:{'Authorization':'Bearer '+ep.key,'Content-Type':'application/json'},
+      const {url:fetchUrl,headers:fetchHeaders}=buildChatFetchParams(ep);
+      const r=await fetch(fetchUrl,{
+        method:'POST',headers:fetchHeaders,
         body:JSON.stringify(body),signal:ctrl.signal});
       clearTimeout(timer);
       if(!r.ok){const e=await r.text();throw new Error(`HTTP ${r.status}: ${e.slice(0,200)}`);}
@@ -4088,6 +4189,10 @@ function openSettings(tab){
   if(S.dirHandle)$('c-filepath').value=S.dirHandle.name+'  (folder)';
   else $('c-filepath').value='';
   updateRanges();renderEpList();
+  // Proxy settings sync
+  $('proxy-enabled').checked=!!S.corsProxy?.enabled;
+  $('proxy-url').value=S.corsProxy?.url||'http://localhost:3030';
+  $('proxy-status').className='proxy-status';$('proxy-status').textContent='';
   const _ws=S.webSearch||DWEB;
   $('ws-timerange').value=_ws.timeRange||'hour';
   $('ws-g-en').checked=!!_ws.providers?.google?.enabled;
@@ -4195,6 +4300,41 @@ function collectEps(){
 $('add-ep-btn').addEventListener('click',()=>{S.endpoints.push({id:uid(),name:'Endpoint '+(S.endpoints.length+1),url:'',key:'',enabled:true});renderEpList();});
 $('fetch-all-btn').addEventListener('click',()=>{collectEps();save();fetchAllModels();});
 $('settings-btn').addEventListener('click',()=>openSettings());
+
+// ── Proxy settings handlers ──
+$('proxy-enabled').addEventListener('change',()=>{
+  if(!S.corsProxy)S.corsProxy={url:'http://localhost:3030',enabled:false};
+  S.corsProxy.enabled=$('proxy-enabled').checked;
+  save();
+});
+$('proxy-url').addEventListener('change',()=>{
+  if(!S.corsProxy)S.corsProxy={url:'http://localhost:3030',enabled:false};
+  S.corsProxy.url=$('proxy-url').value.trim()||'http://localhost:3030';
+  save();
+});
+$('proxy-test-btn').addEventListener('click',async()=>{
+  const st=$('proxy-status');
+  const url=($('proxy-url').value.trim()||'http://localhost:3030').replace(/\/$/,'');
+  st.className='proxy-status';st.textContent='Testing…';st.style.display='block';
+  try{
+    const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),5000);
+    const r=await fetch(`${url}/health`,{signal:ctrl.signal});
+    if(r.ok){
+      const d=await r.json().catch(()=>({}));
+      st.className='proxy-status ok';
+      st.textContent='✓ Proxy is running'+(d.version?' (v'+d.version+')':'');
+      S.corsProxy={...S.corsProxy,url,enabled:true};
+      $('proxy-enabled').checked=true;
+      save();
+    }else{
+      st.className='proxy-status err';
+      st.textContent='✗ Proxy returned HTTP '+r.status;
+    }
+  }catch(e){
+    st.className='proxy-status err';
+    st.textContent='✗ Cannot reach proxy — is it running? ('+e.message+')';
+  }
+});
 $('set-close').addEventListener('click',()=>$('set-ov').classList.remove('open'));
 $('set-cancel').addEventListener('click',()=>$('set-ov').classList.remove('open'));
 $('set-ov').addEventListener('click',e=>{if(e.target===$('set-ov'))$('set-ov').classList.remove('open');});
