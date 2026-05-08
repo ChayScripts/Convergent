@@ -142,13 +142,24 @@ export OLLAMA_ORIGINS=*
 ```
 ---
 
+# Accessing Nvidia Models
+To access nvidia models, install nodejs in your system and run `node convergent-proxy.js` command and leave the terminal running. If you close this terminal Nvidia models wont work. In the html, settings/Endpoints option, enter `http://localhost:3030` url and test proxy connection. Enter Nvidia API URL, key and access the models.
+
+## Why the proxy is needed
+NVIDIA’s APIs expect requests to come from controlled environments (server, authenticated clients) and often reject raw fetch calls from frontend HTML apps.
+
+The local proxy script runs on your machine (e.g., Node.js server) and forwards requests with proper headers, API‑key handling, and sometimes rewritten origin, so NVIDIA’s backend sees them as allowed.
+
+> *This is only needed when accessing Nvidia models.*
+
 # Supported Web Search Providers
 
 Use your preferred search provider for real-time information retrieval.
 
 Examples:
 
-- Tavily  
+- Tavily
+- SearXNG
 - Brave Search  
 - SerpAPI  
 - Serper  
