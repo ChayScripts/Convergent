@@ -140,6 +140,13 @@ set OLLAMA_ORIGINS=*
 ```bash
 export OLLAMA_ORIGINS=*
 ```
+For ollama running from remote server, run below commands on admin powershell console
+
+```powershell
+[System.Environment]::SetEnvironmentVariable("OLLAMA_ORIGINS", "*,null", "Machine")
+[System.Environment]::SetEnvironmentVariable("OLLAMA_HOST", "0.0.0.0", "Machine")
+```
+
 ---
 
 # Accessing Nvidia Models
