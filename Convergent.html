@@ -1061,6 +1061,8 @@ body{
 
 /* ── 4. MAIN / MESSAGES ── */
 .mw{padding:6px 24px;max-width:960px;margin:0 auto;width:100%}
+/* Multi-model messages fill the whole area ONLY when the sidebar is hidden */
+#sb.hide ~ #main .mw.multi-mw{max-width:none}
 .user-bub{
   max-width:min(680px,80%);
   border-radius:12px 12px 4px 12px;padding:12px 16px;
@@ -1312,6 +1314,27 @@ input[type=text]:focus,input[type=password]:focus,input[type=number]:focus,selec
   :root:not([data-theme]) #pv-head{background:var(--bg)}
   :root:not([data-theme]) input[type=text],input[type=password],input[type=number],select,textarea{background:var(--surf2)}
   :root:not([data-theme]) .btn-g{background:transparent}
+}
+
+/* ═══════════════════════════════════════════════
+   MAXIMIZED OUTPUT VIEW (per-model full-screen)
+   Non-destructive: shows a cloned copy of a single
+   model's output full-screen; ✕ restores the layout.
+   ═══════════════════════════════════════════════ */
+#max-view{display:none;position:fixed;inset:0;z-index:1600;background:var(--bg);flex-direction:column;animation:fadeIn .18s ease}
+#max-view.open{display:flex}
+#max-view-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--surf);border-bottom:1px solid var(--bdr);flex-shrink:0;z-index:2}
+#max-view-title{flex:1;font-size:14px;font-weight:600;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#max-view-close{width:32px;height:32px;background:none;border:1px solid var(--bdr);color:var(--muted);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;transition:background .15s cubic-bezier(.4,0,.2,1),color .15s cubic-bezier(.4,0,.2,1),border-color .15s cubic-bezier(.4,0,.2,1)}
+#max-view-close:hover{background:var(--surf2);color:var(--txt2);border-color:var(--acc3)}
+#max-view-body{flex:1;overflow-y:auto;padding:26px 30px 80px}
+#max-view-inner{max-width:1000px;margin:0 auto}
+#max-view-inner .ai-single{max-width:none;width:100%;border-radius:12px}
+#max-view-body .synth-mini-card-body{max-height:none;overflow:visible}
+.mini-max{background:none;border:none;color:inherit;cursor:pointer;padding:2px 6px;border-radius:5px;line-height:1;opacity:.55;transition:opacity .2s cubic-bezier(.4,0,.2,1),background .15s cubic-bezier(.4,0,.2,1);flex-shrink:0;font-family:inherit;display:flex;align-items:center}
+.mini-max:hover{opacity:1;background:color-mix(in srgb,currentColor 15%,transparent)}
+@media (max-width:820px){
+  #max-view-body{padding:12px 12px 60px}
 }
 
 /* ═══════════════════════════════════════════════
@@ -2024,6 +2047,15 @@ input[type=text]:focus,input[type=password]:focus,input[type=number]:focus,selec
 <!-- SELECTION WORD/CHAR BADGE -->
 <div id="sel-badge"><button type="button" class="sel-action" id="sel-ask-btn">Ask about it</button><span class="sel-div"></span><button type="button" class="sel-action" id="sel-write-btn">Start writing</button></div>
 
+<!-- MAXIMIZED OUTPUT VIEW -->
+<div id="max-view" role="dialog" aria-modal="true" aria-label="Maximized output">
+  <div id="max-view-bar">
+    <span id="max-view-title"></span>
+    <button id="max-view-close" type="button" title="Close (Esc)">✕</button>
+  </div>
+  <div id="max-view-body"></div>
+</div>
+
 <input type="file" id="imp-in" accept=".json" style="display:none">
 <input type="file" id="file-input" multiple style="display:none">
 
@@ -2056,6 +2088,8 @@ const $=id=>document.getElementById(id);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const THEME_ICONS={dark:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',light:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>'};
+const ICON_MAX='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>';
+const ICON_MAX_S='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>';
 let currentTheme='light';
 function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,200)+'px';}
 function setStatus(cls,msg,right){
@@ -2245,8 +2279,26 @@ function createAiActions(messageIndex,responseIndex,bodyEl,footEl,pageEl,prevBtn
   retry.setAttribute('aria-label','Try again');
   retry.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.13 3.36L1 14"/></svg>';;
   retry.addEventListener('click',()=>retryMessage(messageIndex));
+  const maxim=document.createElement('button');
+  maxim.className='ai-action-btn';
+  maxim.type='button';
+  maxim.title='Maximize output';
+  maxim.setAttribute('aria-label','Maximize output');
+  maxim.innerHTML=ICON_MAX;
+  maxim.addEventListener('click',()=>{
+    const chat=S.chats[S.activeChat];if(!chat)return;
+    const msg=chat.messages[messageIndex];if(!msg)return;
+    const modelId=(msg.role==='multi'||msg.role==='synthesized')
+      ?(msg.responses?.[responseIndex]?.modelId||'Model')
+      :(msg.modelId||'Model');
+    const el=bodyEl.cloneNode(true);
+    el.querySelector('.ai-actions')?.remove();
+    el.querySelector('.cur')?.remove();
+    openMaxView(modelId,el);
+  });
   wrap.appendChild(copy);
   wrap.appendChild(retry);
+  wrap.appendChild(maxim);
   const data=getMessageVersionData(messageIndex,S.chats[S.activeChat]?.messages?.[messageIndex]?.activeVersion||0);
   if(data&&data.count>1){
     const nav=document.createElement('div');
@@ -3427,6 +3479,44 @@ function startWriting(){
 }
 $('sel-ask-btn').addEventListener('click',askAboutIt);
 $('sel-write-btn').addEventListener('click',startWriting);
+
+// ═══════════════════════════════════════════
+// MAXIMIZED OUTPUT VIEW
+// Shows a cloned copy of one model's output full-screen.
+// Closing it never touches the original message DOM.
+// ═══════════════════════════════════════════
+function openMaxView(title,el){
+  $('max-view-title').textContent=title;
+  const body=$('max-view-body');
+  body.innerHTML='';
+  const inner=document.createElement('div');
+  inner.id='max-view-inner';
+  if(typeof el==='string')inner.innerHTML=el;
+  else if(el)inner.appendChild(el);
+  body.appendChild(inner);
+  body.scrollTop=0;
+  $('max-view').classList.add('open');
+  $('max-view-close').focus();
+}
+function closeMaxView(){
+  $('max-view').classList.remove('open');
+}
+$('max-view-close').addEventListener('click',closeMaxView);
+$('max-view-body').addEventListener('click',e=>{if(e.target===$('max-view-body'))closeMaxView();});
+// Code copy buttons keep working inside the maximized view
+document.getElementById('max-view-body').addEventListener('click',async e=>{
+  const btn=e.target.closest('.code-copy-btn');
+  if(!btn)return;
+  const code=btn.closest('.code-wrap')?.querySelector('code');
+  if(!code)return;
+  try{
+    await navigator.clipboard.writeText(code.innerText);
+    const orig=btn.innerHTML;
+    btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>';
+    btn.classList.add('copied');
+    setTimeout(()=>{btn.innerHTML=orig;btn.classList.remove('copied');},1800);
+  }catch(err){setStatus('err','Copy failed');}
+});
 
 // ═══════════════════════════════════════════
 // MODELS
@@ -4661,6 +4751,7 @@ async function retryMessage(messageIndex){
 function appendAI(responses,streaming,messageIndex,ts){
   $('empty').classList.add('hide');
   const w=document.createElement('div');w.className='mw';const isM=responses.length>1;
+  if(isM)w.classList.add('multi-mw');
   if(!isM){
     const b=document.createElement('div');b.className='ai-single';b.innerHTML=renderContent(responses[0].content);
     if(streaming){const c=document.createElement('span');c.className='cur';c.dataset.i='0';b.appendChild(c);}
@@ -5050,7 +5141,14 @@ async function runSynthesis(userTxt,modelResponses,apiMsgs,chat,messageIndex,raw
     card.dataset.mc=ri%4;
     const showRemove=Number.isInteger(messageIndex);
     const rmBtn=showRemove?`<button class="ai-card-rm" title="Remove this response" aria-label="Remove ${esc(r.modelId)} response">×</button>`:'';
-    card.innerHTML=`<div class="synth-mini-card-head"><div class="model-dot" style="width:6px;height:6px;flex-shrink:0"></div><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.modelId)}</span><span style="margin-left:auto;flex-shrink:0;font-size:11px;opacity:.6">${esc(ep)}</span>${rmBtn}</div><div class="synth-mini-card-body">${renderContent(r.content)}</div>`;
+    const mxBtn=`<button class="mini-max" title="Maximize output" aria-label="Maximize ${esc(r.modelId)} output">${ICON_MAX_S}</button>`;
+    card.innerHTML=`<div class="synth-mini-card-head"><div class="model-dot" style="width:6px;height:6px;flex-shrink:0"></div><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.modelId)}</span><span style="margin-left:auto;flex-shrink:0;font-size:11px;opacity:.6">${esc(ep)}</span>${mxBtn}${rmBtn}</div><div class="synth-mini-card-body">${renderContent(r.content)}</div>`;
+    const mx=card.querySelector('.mini-max');
+    if(mx)mx.addEventListener('click',ev=>{
+      ev.stopPropagation();
+      const el=card.querySelector('.synth-mini-card-body').cloneNode(true);
+      openMaxView(r.modelId||'Model',el);
+    });
     if(showRemove){
       const btn=card.querySelector('.ai-card-rm');
       if(btn)btn.addEventListener('click',ev=>{
@@ -5192,7 +5290,14 @@ function appendSynthMsg(msg,streaming,messageIndex){
     card.dataset.mc=ri%4;
     const showRemove=Number.isInteger(messageIndex);
     const rmBtn=showRemove?`<button class="ai-card-rm" title="Remove this response" aria-label="Remove ${esc(r.modelId)} response">×</button>`:'';
-    card.innerHTML=`<div class="synth-mini-card-head"><div class="model-dot" style="width:6px;height:6px;flex-shrink:0"></div><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.modelId)}</span><span style="margin-left:auto;flex-shrink:0;font-size:11px;opacity:.6">${esc(ep)}</span>${rmBtn}</div><div class="synth-mini-card-body">${renderContent(r.content)}</div>`;
+    const mxBtn=`<button class="mini-max" title="Maximize output" aria-label="Maximize ${esc(r.modelId)} output">${ICON_MAX_S}</button>`;
+    card.innerHTML=`<div class="synth-mini-card-head"><div class="model-dot" style="width:6px;height:6px;flex-shrink:0"></div><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.modelId)}</span><span style="margin-left:auto;flex-shrink:0;font-size:11px;opacity:.6">${esc(ep)}</span>${mxBtn}${rmBtn}</div><div class="synth-mini-card-body">${renderContent(r.content)}</div>`;
+    const mx=card.querySelector('.mini-max');
+    if(mx)mx.addEventListener('click',ev=>{
+      ev.stopPropagation();
+      const el=card.querySelector('.synth-mini-card-body').cloneNode(true);
+      openMaxView(r.modelId||'Model',el);
+    });
     if(showRemove){
       const btn=card.querySelector('.ai-card-rm');
       if(btn)btn.addEventListener('click',ev=>{
@@ -5231,7 +5336,16 @@ function appendSynthMsg(msg,streaming,messageIndex){
     retry.className='ai-action-btn';retry.title='Re-synthesize';
     retry.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.13 3.36L1 14"/></svg>';
     retry.addEventListener('click',()=>retryMessage(messageIndex));
-    actWrap.appendChild(copy);actWrap.appendChild(retry);
+    const maxim=document.createElement('button');
+    maxim.className='ai-action-btn';maxim.title='Maximize output';maxim.type='button';
+    maxim.innerHTML=ICON_MAX;
+    maxim.addEventListener('click',()=>{
+      const v=versions?versions[msg.activeVersion||0]:msg;
+      const el=answerBody.cloneNode(true);
+      el.querySelector('.ai-actions')?.remove();
+      openMaxView('Synthesized Answer'+(msg.synthModelId?' · '+msg.synthModelId:''),el);
+    });
+    actWrap.appendChild(copy);actWrap.appendChild(retry);actWrap.appendChild(maxim);
 
     // Version nav for synthesized messages
     const versions=Array.isArray(msg.versions)&&msg.versions.length>1?msg.versions:null;
@@ -6043,6 +6157,7 @@ document.addEventListener('keydown',e=>{
   const inField=/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName||'')
     ||document.activeElement?.isContentEditable;
   if(e.key==='Escape'){
+    if($('max-view').classList.contains('open')){closeMaxView();return;}
     // Close any open dropdown/menus
     closeAllModelDDs();
     $('ws-dd').classList.remove('open');
