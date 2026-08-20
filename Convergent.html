@@ -374,7 +374,7 @@ border-top:3px solid var(--bdr);border-radius:14px;overflow:hidden;transition:bo
 #stop-btn.show{display:flex}
 
 /* ── FILE UPLOAD ── */
-#file-preview{display:none;flex-wrap:wrap;gap:6px;padding:0 14px 8px}
+#file-preview{display:none;flex-wrap:wrap;gap:6px;padding:16px 14px 8px}
 #file-preview.show{display:flex}
 .file-pill{display:flex;align-items:center;gap:6px;background:var(--surf2);border:1px solid var(--bdr);border-radius:8px;padding:5px 5px 5px 10px;font-size:12px;color:var(--txt);max-width:200px;animation:pillIn .18s cubic-bezier(.2,0,.15,1) both}
 .file-pill-img{width:26px;height:26px;border-radius:5px;object-fit:cover;flex-shrink:0}
@@ -1164,7 +1164,7 @@ mark{background:color-mix(in srgb,var(--acc) 32%,transparent);color:var(--txt2);
 #send-btn:active{transform:scale(.96)}
 #stop-btn{width:36px;height:36px;border-radius:8px}
 .file-pill{border-radius:8px}
-#file-preview{padding:0 12px 8px}
+#file-preview{padding:16px 12px 8px}
 #quote-preview{padding:0 12px 8px}
 
 /* model bar */
@@ -2092,7 +2092,7 @@ input[type=text]:focus,input[type=password]:focus,input[type=number]:focus,selec
 const DCFG={timeout:120,temp:.7,topp:1,maxTokens:4096,ctxMsgs:40,freq:0,pres:0,stream:true,showUsage:true,stop:[],systemPrompt:'',synthesize:false,renderMarkdown:true};
 const DWEB={enabled:false,timeRange:'hour',providers:{google:{enabled:false,apiKey:'',cx:''},bing:{enabled:false,apiKey:''},duckduckgo:{enabled:false},searxng:{enabled:false,url:''},brave:{enabled:false,apiKey:''},tavily:{enabled:false,apiKey:''},custom:{enabled:false,url:'',apiKey:''}}};
 const S={cfg:{...DCFG},endpoints:[],models:[],folders:{},chats:{},activeChat:null,activeProject:null,projectsExpanded:true,projectsShowAll:false,recentChatsExpanded:true,chatOrder:[],
-         selModels:[],streaming:false,aborts:{},dirHandle:null,sbVisible:true,webSearch:{...DWEB},slashCommands:null,corsProxy:{url:'http://localhost:3030',enabled:false},
+         selModels:[],streamingChats:{},aborts:{},streamBubbles:{},dirHandle:null,sbVisible:true,webSearch:{...DWEB},slashCommands:null,corsProxy:{url:'http://localhost:3030',enabled:false},
          mcpServers:[],pendingFiles:[],pendingQuote:'',pvView:'grid'}; // v5: global MCP server list + pending file uploads
 
 // Built-in slash commands (used as defaults when slashCommands hasn't been initialised yet).
@@ -2168,12 +2168,12 @@ function renderLatency(){
   $('st-sep3').style.display='inline-block';
 }
 let _latencyTimer=null;
+let _streamCount=0;
 function startLatencyTicker(){
-  stopLatencyTicker();
-  _latencyTimer=setInterval(renderLatency,150);
+  if(!_latencyTimer)_latencyTimer=setInterval(renderLatency,150);
 }
 function stopLatencyTicker(){
-  if(_latencyTimer){clearInterval(_latencyTimer);_latencyTimer=null;}
+  if(_streamCount<=0&&_latencyTimer){clearInterval(_latencyTimer);_latencyTimer=null;}
 }
 
 // ── smart auto-scroll during streaming ──
@@ -2861,7 +2861,7 @@ const Dirty={index:false,config:false,chats:new Set(),deleted:new Set()};
 function markIndexDirty(){Dirty.index=true;}
 function markConfigDirty(){Dirty.config=true;}
 function markChatDirty(id){if(id){Dirty.chats.add(id);Dirty.index=true;}}
-function markChatDeleted(id){if(id){Dirty.deleted.add(id);Dirty.chats.delete(id);Dirty.index=true;}}
+function markChatDeleted(id){if(id){Dirty.deleted.add(id);Dirty.chats.delete(id);Dirty.index=true;tombstoneAdd(id);}}
 function markAllDirty(){Dirty.index=true;Dirty.config=true;Object.keys(S.chats).forEach(id=>Dirty.chats.add(id));}
 
 // Last-backup-time cache (avoids writing a backup on every save)
@@ -2941,8 +2941,10 @@ async function writeDir(opts={}){
     }
 
     // Handle deletions
+    const deletedNow=[];
     for(const id of Dirty.deleted){
       await deleteFrom(chatsDir,id+'.json');
+      deletedNow.push(id);
     }
     Dirty.deleted.clear();
 
@@ -2974,6 +2976,19 @@ async function writeDir(opts={}){
       }
       await writeTo(root,'index.json',idxPayload);
       Dirty.index=false;
+      // Deletion is on disk — drop its tombstone only when no other source
+      // (the localStorage snapshot) still references the chat.
+      if(deletedNow.length){
+        const t=loadDeletedTombstones();
+        let ls={};
+        try{ls=JSON.parse(localStorage.getItem('Convergent-state')||'{}');}catch{}
+        const rest=t.filter(id=>{
+          if(!deletedNow.includes(id))return true;
+          if(ls.chats&&ls.chats[id])return true;
+          return false;
+        });
+        if(rest.length!==t.length)saveDeletedTombstones(rest);
+      }
     }
   }catch(e){setStatus('err','Write failed: '+e.message);console.error('writeDir',e);}
 }
@@ -3101,6 +3116,51 @@ async function recoverChat(id){
 // SAVE / FLUSH
 // ═══════════════════════════════════════════
 let saveT;
+// Deletion tombstones — synchronous record of deleted chat ids. Deleting a chat
+// writes the tombstone to localStorage immediately (synchronous), while the
+// actual sharded-file cleanup (writeDir) is async + debounced and usually dies
+// on page refresh. On the next load we remove tombstoned chats from memory so
+// stale on-disk index.json / chat files can never resurrect them.
+const DELETED_KEY='Convergent-deleted';
+function loadDeletedTombstones(){
+  try{
+    const raw=localStorage.getItem(DELETED_KEY);
+    if(!raw)return [];
+    const arr=JSON.parse(raw);
+    return Array.isArray(arr)?arr:[];
+  }catch{return [];}
+}
+function saveDeletedTombstones(ids){
+  try{localStorage.setItem(DELETED_KEY,JSON.stringify(ids));}
+  catch(e){console.warn('tombstone save failed',e);}
+}
+function tombstoneAdd(id){
+  if(!id)return;
+  const t=loadDeletedTombstones();
+  if(!t.includes(id)){t.push(id);saveDeletedTombstones(t);}
+}
+function tombstoneRemove(id){
+  if(!id)return;
+  const t=loadDeletedTombstones();
+  if(t.includes(id))saveDeletedTombstones(t.filter(x=>x!==id));
+}
+// Remove tombstoned chats from S.chats and re-mark them for on-disk cleanup.
+// Must run AFTER mergeFromLocalStorage so stale snapshots cannot re-add them.
+function applyDeletedTombstones(){
+  const t=loadDeletedTombstones();
+  if(!t.length)return [];
+  const removed=[];
+  t.forEach(id=>{
+    if(S.chats[id]){
+      delete S.chats[id];
+      if(S.activeChat===id)S.activeChat=null;
+      removed.push(id);
+    }
+    markChatDeleted(id);
+  });
+  if(removed.length)writeDir();
+  return removed;
+}
 function saveToLocalStorage(){
   try{localStorage.setItem('Convergent-state',JSON.stringify(snapshot()));}catch(e){console.warn('localStorage save failed',e);}
 }
@@ -3110,7 +3170,9 @@ function mergeFromLocalStorage(){
     if(!raw)return;
     const d=JSON.parse(raw);
     if(!d||!d.chats)return;
+    const tombstones=new Set(loadDeletedTombstones());
     Object.entries(d.chats).forEach(([id,chat])=>{
+      if(tombstones.has(id))return;
       if(!S.chats[id]){S.chats[id]=chat;markChatDirty(id);}
       else if((chat.messages||[]).length>(S.chats[id].messages||[]).length){S.chats[id]=chat;markChatDirty(id);}
     });
@@ -3336,7 +3398,7 @@ function renderSearchResults(q){
     sbInner+=`<div class="sr-title">${hl(chat.title||'New chat',terms)}</div>`;
     if(snippet)sbInner+=`<div class="sr-snippet">${hl(snippet,terms)}</div>`;
     sbEl.innerHTML=sbInner;
-    sbEl.addEventListener('click',()=>{S.activeChat=cid;S.activeProject=null;S._edit=null;closeSearch();renderSB();renderMsgs();});
+    sbEl.addEventListener('click',()=>{S.activeChat=cid;S.activeProject=null;S._edit=null;closeSearch();applyChatModels(S.chats[cid]);renderModelBar();renderSB();renderMsgs();});
     sbContainer.insertBefore(sbEl,sbContainer.querySelector('#search-no-results'));
     // main panel item
     const mainEl=document.createElement('div');
@@ -3346,7 +3408,7 @@ function renderSearchResults(q){
     mainInner+=`<div class="csp-result-title">${hl(chat.title||'New chat',terms)}</div>`;
     if(snippet)mainInner+=`<div class="csp-result-snippet">${hl(snippet,terms)}</div>`;
     mainEl.innerHTML=mainInner;
-    mainEl.addEventListener('click',()=>{S.activeChat=cid;S.activeProject=null;S._edit=null;closeSearch();renderSB();renderMsgs();});
+    mainEl.addEventListener('click',()=>{S.activeChat=cid;S.activeProject=null;S._edit=null;closeSearch();applyChatModels(S.chats[cid]);renderModelBar();renderSB();renderMsgs();});
     mainContainer.insertBefore(mainEl,$('csp-no-results'));
   });
 }
@@ -3623,6 +3685,7 @@ async function fetchAllModels(){
   res.forEach(ms=>S.models.push(...ms));
   S.selModels=S.selModels.filter(s=>S.models.some(m=>m.id===s.modelId&&m.endpointId===s.endpointId));
   if(!S.selModels.length&&S.models.length)S.selModels=[{modelId:S.models[0].id,endpointId:S.models[0].endpointId}];
+  persistActiveChatModels();
   renderModelBar();
   setStatus(S.models.length?'ok':'err',S.models.length?`Ready · ${S.models.length} model(s) from ${activeEps.length} endpoint(s)`:'No models returned');
 }
@@ -3634,6 +3697,33 @@ function closeAllModelDDs(){
   document.querySelectorAll('.mpill-dd.open').forEach(d=>d.classList.remove('open'));
 }
 
+// Each chat remembers its own model selection; the model bar shows the active chat's.
+function persistActiveChatModels(){
+  const c=S.activeChat&&S.chats[S.activeChat];
+  if(c)S.chats[S.activeChat].modelSelections=S.selModels.map(s=>({modelId:s.modelId,endpointId:s.endpointId}));
+}
+function applyChatModels(c){
+  if(!c)return;
+  if(!Array.isArray(c.modelSelections)||!c.modelSelections.length){
+    // legacy chat without a saved selection — infer it from the last response(s)
+    const msgs=c.messages||[];
+    for(let i=msgs.length-1;i>=0;i--){
+      const m=msgs[i];
+      let sel=null;
+      if(m.role==='assistant'&&m.modelId&&m.endpointId)sel=[{modelId:m.modelId,endpointId:m.endpointId}];
+      else if((m.role==='multi'||m.role==='synthesized')&&Array.isArray(m.responses)&&m.responses.length)sel=m.responses.map(r=>({modelId:r.modelId,endpointId:r.endpointId})).filter(x=>x.modelId&&x.endpointId);
+      if(sel&&sel.length){c.modelSelections=sel.map(s=>({modelId:s.modelId,endpointId:s.endpointId}));break;}
+    }
+  }
+  if(!Array.isArray(c.modelSelections)||!c.modelSelections.length){
+    c.modelSelections=S.selModels.map(s=>({modelId:s.modelId,endpointId:s.endpointId}));
+  }
+  S.selModels=c.modelSelections.map(s=>({modelId:s.modelId,endpointId:s.endpointId}));
+  if(S.models.length){
+    const valid=S.selModels.filter(x=>S.models.some(m=>m.id===x.modelId&&m.endpointId===x.endpointId));
+    S.selModels=valid.length?valid:[{modelId:S.models[0].id,endpointId:S.models[0].endpointId}];
+  }
+}
 function renderModelBar(){
   $('model-bar').querySelectorAll('.mpill').forEach(p=>p.remove());
   const addBtn=$('add-model-btn');
@@ -3712,7 +3802,7 @@ function renderModelBar(){
           item.addEventListener('click',e=>{
             e.stopPropagation();
             S.selModels[idx]={modelId:m.id,endpointId:m.endpointId};
-            save();renderModelBar();
+            save();persistActiveChatModels();renderModelBar();
             // restore focus to the trigger of the just-rerendered pill
             setTimeout(()=>{
               const newPill=$('model-bar').querySelector('.mpill[data-idx="'+idx+'"] .mpill-trigger');
@@ -3792,8 +3882,7 @@ function renderModelBar(){
           S.cfg.synthesize=false;
           setStatus('warn','Synthesis disabled — requires 2+ models');
         }
-        renderModelBar();save();
-        updateSynthState();
+        renderModelBar();save();persistActiveChatModels();updateSynthState();
       });
       pill.appendChild(x);
     }
@@ -3867,8 +3956,7 @@ function initPillDrag(){
       const moved=S.selModels.splice(_pillDragIdx,1)[0];
       if(_pillDragIdx<target)target--;
       S.selModels.splice(target,0,moved);
-      save();
-      renderModelBar();
+      save();persistActiveChatModels();renderModelBar();
     });
   });
 }
@@ -3877,7 +3965,7 @@ document.addEventListener('click',()=>closeAllModelDDs());
 
 $('add-model-btn').addEventListener('click',()=>{
   if(!S.models.length){setStatus('err','Fetch models first');return;}
-  S.selModels.push({modelId:S.models[0].id,endpointId:S.models[0].endpointId});renderModelBar();save();
+  S.selModels.push({modelId:S.models[0].id,endpointId:S.models[0].endpointId});renderModelBar();save();persistActiveChatModels();
 });
 $('reload-btn').addEventListener('click',fetchAllModels);
 
@@ -4096,7 +4184,7 @@ function renderProjectView(){
       <div class="pv-chat-snippet${snippet?'':' empty'}">${snippet?esc(snippet):'No messages yet'}</div>
       ${dateStr?`<div class="pv-chat-meta"><span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${esc(dateStr)}</span></div>`:''}`;
     card.querySelector('.pv-chat-menu').addEventListener('click',e=>{e.stopPropagation();showCtx(e,cid,null);});
-    card.addEventListener('click',()=>{S.activeChat=cid;S.activeProject=null;S._edit=null;renderSB();renderMsgs();});
+    card.addEventListener('click',()=>{S.activeChat=cid;S.activeProject=null;S._edit=null;applyChatModels(S.chats[cid]);renderModelBar();renderSB();renderMsgs();});
     card.addEventListener('contextmenu',e=>{e.preventDefault();showCtx(e,cid,null);});
     wrap.appendChild(card);
   });
@@ -4131,7 +4219,7 @@ function makeChatEl(cid){
   const m=document.createElement('button');m.className='ci-menu';m.textContent='···';
   m.addEventListener('click',e=>{e.stopPropagation();showCtx(e,cid,null);});
   d.appendChild(t);d.appendChild(m);
-  d.addEventListener('click',()=>{S.activeChat=cid;S.activeProject=null;S._edit=null;renderSB();renderMsgs();closeSBDrawer();});
+  d.addEventListener('click',()=>{S.activeChat=cid;S.activeProject=null;S._edit=null;applyChatModels(S.chats[cid]);renderModelBar();renderSB();renderMsgs();closeSBDrawer();});
   d.addEventListener('contextmenu',e=>{e.preventDefault();showCtx(e,cid,null);});
   return d;
 }
@@ -4260,15 +4348,16 @@ function _softDeleteChats(ids){
     const rem=sortedIds(null);
     S.activeChat=rem.length?rem[0]:null;
   }
-  save();renderSB();renderMsgs();
+  save();applyChatModels(S.activeChat?S.chats[S.activeChat]:null);renderModelBar();renderSB();renderMsgs();
   setStatus('ok',`Deleted ${ids.length} chat${ids.length!==1?'s':''}`);
   showUndo(`Deleted ${ids.length} chat${ids.length!==1?'s':''}`,()=>{
     Object.entries(snap).forEach(([id,c])=>{
       S.chats[id]=c;
       Dirty.chats.add(id);Dirty.deleted.delete(id);Dirty.index=true;
+      tombstoneRemove(id);
     });
     if(prevActive&&S.chats[prevActive])S.activeChat=prevActive;
-    save(true);renderSB();renderMsgs();
+    save(true);applyChatModels(S.activeChat?S.chats[S.activeChat]:null);renderModelBar();renderSB();renderMsgs();
     setStatus('ok','Chats restored');
   });
 }
@@ -4620,6 +4709,20 @@ function renderContent(t){
   return html;
 }
 
+function syncBusyUI(){
+  const btn=$('send-btn');
+  if(btn)btn.disabled=!!S.streamingChats[S.activeChat];
+  const stop=$('stop-btn');
+  if(stop)stop.classList.toggle('show',!!S.streamingChats[S.activeChat]);
+}
+function endExchange(cid){
+  _streamCount--;
+  if(_streamCount<0)_streamCount=0;
+  if(cid){delete S.streamingChats[cid];delete S.streamBubbles[cid];delete S.aborts[cid];}
+  if(_streamCount===0)S.aborts={};
+  stopLatencyTicker();
+  syncBusyUI();
+}
 function renderMsgs(){
   // If a project is active, show the project view instead of chat messages
   if(S.activeProject && S.folders[S.activeProject]){
@@ -4645,7 +4748,12 @@ function renderMsgs(){
     else if(m.role==='multi')appendAI(m.responses,false,i,m.ts);
     else if(m.role==='synthesized')appendSynthMsg(m,false,i);
   });
+  const sb=S.streamBubbles[S.activeChat];
+  if(sb&&sb.bubble&&!sb.bubble.isConnected){
+    $('msgs').appendChild(sb.bubble);
+  }
   forceScroll();
+  syncBusyUI();
   $('st-right').textContent=tokenRight();
   // Show project context bar if this chat belongs to a project with context
   renderProjCtxBar(S.chats[S.activeChat]?.folderId||null);
@@ -4698,7 +4806,7 @@ function appendUser(c,files,ts,idx,cid){
       const chat=S.chats[cidOut];
       const msg=chat?.messages?.[idx];
       if(!chat||!msg)return;
-      if(S.streaming){setStatus('warn','Wait for the current response to finish');return;}
+if(S.streamingChats[cidOut]){setStatus('warn','Wait for the current response to finish');return;}
       if(S.activeChat!==cidOut){setStatus('warn','Switch to that chat to edit its prompt');return;}
       if(S._edit&&S._edit.cid===cidOut&&S._edit.idx===idx){submitEdit();return;}
       S._edit={cid:cidOut,idx};
@@ -4740,7 +4848,7 @@ function submitEdit(){
   const chat=S.chats[edit.cid];
   const msg=chat?.messages?.[edit.idx];
   if(!chat||!msg||msg.role!=='user'){S._edit=null;renderMsgs();return;}
-  if(S.streaming){setStatus('warn','Wait for the current response to finish');return;}
+  if(S.streamingChats[edit.cid]){setStatus('warn','Wait for the current response to finish');return;}
   const wrap=document.querySelector(`#msgs .mw[data-cid="${edit.cid}"][data-midx="${edit.idx}"]`);
   const bub=wrap?wrap.querySelector('.user-bub'):null;
   const txt=(bub?bub.innerText:msg.content).replace(/\u00a0/g,' ').trim();
@@ -4760,7 +4868,7 @@ function cancelEdit(){
   renderMsgs();
 }
 async function retryMessage(messageIndex){
-  if(S.streaming){setStatus('warn','Wait for current response to finish');return;}
+  if(S.streamingChats[S.activeChat]){setStatus('warn','Wait for current response to finish');return;}
   const chat=S.chats[S.activeChat];
   const target=chat?.messages?.[messageIndex];
   if(!chat||!target)return;
@@ -4892,7 +5000,7 @@ async function send(){
   const quoted=(S.pendingQuote||'').trim();
   const txt=$('user-inp').value.trim();
   const hasFiles=S.pendingFiles.length>0;
-  if((!txt&&!hasFiles&&!quoted)||S.streaming)return;
+  if((!txt&&!hasFiles&&!quoted)||S.streamingChats[S.activeChat])return;
   if(S._edit)cancelEdit();
   if(!S.selModels.length){setStatus('err','No model selected');return;}
   const activeSelModels=getActiveSelModels();
@@ -4940,6 +5048,7 @@ async function runExchange(chat,txt,files,activeSelModels){
 }
 async function generateResponse(txt,apiMsgs,opts={}){
   const chat=opts.chat||S.chats[S.activeChat];
+  const cid=chat.id||S.activeChat;
   // Reset per-turn token counter — the status bar shows tokens consumed by the current exchange,
   // not a compounding sum (API total_tokens already includes the full prompt context on every call,
   // so accumulating it across turns double-counts the history).
@@ -4948,14 +5057,18 @@ async function generateResponse(txt,apiMsgs,opts={}){
   const targetMessage=opts.targetMessage||null;
   const messageIndex=Number.isInteger(opts.messageIndex)?opts.messageIndex:chat.messages.length;
   const selModels=opts.activeSelModels||S.selModels.filter(s=>{const ep=S.endpoints.find(e=>e.id===s.endpointId);return!ep||ep.enabled!==false;});
-  S.streaming=true;$('send-btn').disabled=true;$('stop-btn').classList.add('show');
+  _streamCount++;
+  S.streamingChats[cid]=true;
+  S.aborts[cid]=S.aborts[cid]||{};
+  syncBusyUI();
+  try{
   const total=selModels.length;
   setStatus('busy',`Waiting for models… (0 / ${total} done)`);
   const stubs=selModels.map(s=>({modelId:s.modelId,endpointId:s.endpointId,content:''}));
   const bubble=retry?appendAI(stubs,true,messageIndex):appendAI(stubs,true);
+  S.streamBubbles[cid]={bubble,messageIndex};
   const acc=new Array(total).fill('');
   const done=new Array(total).fill(false);
-  S.aborts={};
 
   // v3: latency tracking for status bar
   const turnStart=Date.now();
@@ -4974,7 +5087,7 @@ async function generateResponse(txt,apiMsgs,opts={}){
 
   await Promise.allSettled(selModels.map((sel,idx)=>{
     const ep=S.endpoints.find(e=>e.id===sel.endpointId);
-    const ctrl=new AbortController();S.aborts[idx]=ctrl;
+    const ctrl=new AbortController();S.aborts[cid][idx]=ctrl;
     return streamOne(ep,sel.modelId,apiMsgs,idx,acc,bubble,ctrl,onModelDone);
   }));
   stopLatencyTicker();
@@ -4983,7 +5096,12 @@ async function generateResponse(txt,apiMsgs,opts={}){
   const finalR=selModels.map((s,i)=>({modelId:s.modelId,endpointId:s.endpointId,content:acc[i]}));
   // ── SYNTHESIS MODE ──
   if(S.cfg.synthesize&&selModels.length>1){
-    await runSynthesis(txt,finalR,apiMsgs,chat,messageIndex,bubble,retry,targetMessage);
+    const synthOk=await runSynthesis(txt,finalR,apiMsgs,chat,messageIndex,bubble,retry,targetMessage,cid);
+    endExchange(cid);
+    markChatDirty(cid);
+    renderMsgs();
+    setStatus(synthOk?'ok':'err',synthOk?'Ready':'Synthesis failed — all models returned errors. Raw responses shown.',tokenRight());
+    save(true);
     return;
   }
   let target=targetMessage;
@@ -5002,13 +5120,22 @@ async function generateResponse(txt,apiMsgs,opts={}){
     if(selModels.length===1)chat.messages.push({role:'assistant',content:acc[0],modelId:selModels[0].modelId,endpointId:selModels[0].endpointId,versions:[{content:acc[0]}],activeVersion:0,ts:Date.now()});
     else chat.messages.push({role:'multi',responses:finalR.map(r=>({...r})),versions:[{responses:finalR.map(r=>({...r}))}],activeVersion:0,ts:Date.now()});
   }
-  S.streaming=false;S.aborts={};$('send-btn').disabled=false;$('stop-btn').classList.remove('show');
+  endExchange(cid);
+  markChatDirty(cid);
   renderMsgs();
-  setStatus('ok','Ready',tokenRight());save(S.activeChat||true);
+  setStatus('ok','Ready',tokenRight());save(true);
+  }catch(e){
+    console.warn('Exchange error',e);
+    endExchange(cid);
+    markChatDirty(cid);
+    renderMsgs();
+    setStatus('err',e?.message||'Response failed');
+    save(true);
+  }
 }
 async function streamOne(ep,modelId,apiMsgs,idx,acc,bubble,ctrl,onModelDone){
   if(isGeminiEndpoint(ep))return streamOneGemini(ep,modelId,apiMsgs,idx,acc,bubble,ctrl,onModelDone);
-  const isM=S.selModels.length>1;
+  const isM=acc.length>1;
   const bodyEl=isM?bubble.querySelector(`.ai-card-body[data-i="${idx}"]`):bubble.querySelector('.ai-single');
   if(!ep){
     acc[idx]='[Error: Endpoint not found]';
@@ -5021,13 +5148,13 @@ async function streamOne(ep,modelId,apiMsgs,idx,acc,bubble,ctrl,onModelDone){
     max_tokens:S.cfg.maxTokens||4096,temperature:S.cfg.temp??0.7,top_p:S.cfg.topp??1,
     frequency_penalty:S.cfg.freq??0,presence_penalty:S.cfg.pres??0};
   if(stop.length)body.stop=stop;
-  const timer=setTimeout(()=>ctrl.abort(),(S.cfg.timeout||120)*1000);
+  let timer=setTimeout(()=>{ctrl.timeoutAborted=true;ctrl.abort();},(S.cfg.timeout||120)*1000);
+  const hardTimer=setTimeout(()=>{ctrl.timeoutAborted=true;ctrl.abort();},(S.cfg.timeout||120)*15000);
   try{
     const {url:fetchUrl,headers:fetchHeaders}=buildChatFetchParams(ep);
     const r=await fetch(fetchUrl,{
       method:'POST',headers:fetchHeaders,
       body:JSON.stringify(body),signal:ctrl.signal});
-    clearTimeout(timer);
     if(!r.ok){const e=await r.text();throw new Error(`HTTP ${r.status}: ${e.slice(0,200)}`);}
     if(S.cfg.stream===false){
       const d=await r.json();acc[idx]=d.choices?.[0]?.message?.content||'';
@@ -5039,28 +5166,34 @@ async function streamOne(ep,modelId,apiMsgs,idx,acc,bubble,ctrl,onModelDone){
         // v3: stamp firstChunk on the very first byte received
         if(_latency.current[idx]&&_latency.current[idx].firstChunk==null){_latency.current[idx].firstChunk=Date.now();}
         buf+=dec.decode(value,{stream:true});
+        clearTimeout(timer);timer=setTimeout(()=>{ctrl.timeoutAborted=true;ctrl.abort();},(S.cfg.timeout||120)*1000);
         const lines=buf.split('\n');buf=lines.pop();
         for(const line of lines){
           const t=line.trim();if(!t||t==='data: [DONE]'||!t.startsWith('data: '))continue;
           try{
             const j=JSON.parse(t.slice(6));
             acc[idx]+=j.choices?.[0]?.delta?.content||'';
-            if(j.usage&&j.usage.total_tokens)reqTok=j.usage.total_tokens;
             const cur=bubble.querySelector(`.cur[data-i="${idx}"]`);
             bodyEl.innerHTML=renderContent(acc[idx]);if(cur)bodyEl.appendChild(cur);
             maybeScroll();
           }catch{}
         }
       }
+      clearTimeout(timer);clearTimeout(hardTimer);
       if(reqTok)addTokens(reqTok);
     }
     bubble.querySelector(`.cur[data-i="${idx}"]`)?.remove();bodyEl.innerHTML=renderContent(acc[idx]);
   }catch(e){
-    clearTimeout(timer);bubble.querySelector(`.cur[data-i="${idx}"]`)?.remove();
+    clearTimeout(timer);clearTimeout(hardTimer);bubble.querySelector(`.cur[data-i="${idx}"]`)?.remove();
     if(e.name==='AbortError'){
-      // keep whatever partial content was streamed; mark as stopped
-      if(!acc[idx])acc[idx]='[Response stopped]';
-      bodyEl.innerHTML=renderContent(acc[idx])+'<span style="color:var(--muted);font-size:12px"> [stopped]</span>';
+      if(ctrl.timeoutAborted){
+        acc[idx]=acc[idx]||'[Timed out — no output received]';
+        bodyEl.innerHTML=renderContent(acc[idx])+'<span style="color:var(--err);font-size:12px"> [timed out — partial output kept]</span>';
+      }else{
+        // keep whatever partial content was streamed; mark as stopped
+        if(!acc[idx])acc[idx]='[Response stopped]';
+        bodyEl.innerHTML=renderContent(acc[idx])+'<span style="color:var(--muted);font-size:12px"> [stopped]</span>';
+      }
     }else{
       acc[idx]=`[Error: ${e.message}]`;
       bodyEl.innerHTML=`<span style="color:var(--err)">${esc(e.message)}</span>`;
@@ -5069,7 +5202,7 @@ async function streamOne(ep,modelId,apiMsgs,idx,acc,bubble,ctrl,onModelDone){
   if(onModelDone)onModelDone(idx);
 }
 async function streamOneGemini(ep,modelId,apiMsgs,idx,acc,bubble,ctrl,onModelDone){
-  const isM=S.selModels.length>1;
+  const isM=acc.length>1;
   const bodyEl=isM?bubble.querySelector(`.ai-card-body[data-i="${idx}"]`):bubble.querySelector('.ai-single');
   const contents=[];
   let systemText='';
@@ -5090,7 +5223,8 @@ async function streamOneGemini(ep,modelId,apiMsgs,idx,acc,bubble,ctrl,onModelDon
   const endpoint=useStream
     ?`${base}/models/${encodeURIComponent(modelId)}:streamGenerateContent?alt=sse&key=${encodeURIComponent(ep.key)}`
     :`${base}/models/${encodeURIComponent(modelId)}:generateContent?key=${encodeURIComponent(ep.key)}`;
-  const timer=setTimeout(()=>ctrl.abort(),(S.cfg.timeout||120)*1000);
+  let timer=setTimeout(()=>{ctrl.timeoutAborted=true;ctrl.abort();},(S.cfg.timeout||120)*1000);
+  const hardTimer=setTimeout(()=>{ctrl.timeoutAborted=true;ctrl.abort();},(S.cfg.timeout||120)*15000);
 
   let reqTok=0;
   function parseGeminiChunk(raw){
@@ -5104,7 +5238,6 @@ async function streamOneGemini(ep,modelId,apiMsgs,idx,acc,bubble,ctrl,onModelDon
 
   try{
     const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(gemBody),signal:ctrl.signal});
-    clearTimeout(timer);
     if(!r.ok){const e=await r.text();throw new Error(`HTTP ${r.status}: ${e.slice(0,200)}`);}
     if(!useStream){
       const d=await r.json();
@@ -5129,6 +5262,7 @@ async function streamOneGemini(ep,modelId,apiMsgs,idx,acc,bubble,ctrl,onModelDon
         // v3: stamp firstChunk on the very first byte received
         if(_latency.current[idx]&&_latency.current[idx].firstChunk==null){_latency.current[idx].firstChunk=Date.now();}
         buf+=dec.decode(value,{stream:true});
+        clearTimeout(timer);timer=setTimeout(()=>{ctrl.timeoutAborted=true;ctrl.abort();},(S.cfg.timeout||120)*1000);
         const lines=buf.split('\n');buf=lines.pop();
         for(const line of lines){
           const t=line.trim();if(!t)continue;
@@ -5143,14 +5277,20 @@ async function streamOneGemini(ep,modelId,apiMsgs,idx,acc,bubble,ctrl,onModelDon
         bodyEl.innerHTML=renderContent(acc[idx]);if(cur)bodyEl.appendChild(cur);
         maybeScroll();
       }
+      clearTimeout(timer);clearTimeout(hardTimer);
       if(reqTok)addTokens(reqTok);
     }
     bubble.querySelector(`.cur[data-i="${idx}"]`)?.remove();bodyEl.innerHTML=renderContent(acc[idx]);
   }catch(e){
-    clearTimeout(timer);bubble.querySelector(`.cur[data-i="${idx}"]`)?.remove();
+    clearTimeout(timer);clearTimeout(hardTimer);bubble.querySelector(`.cur[data-i="${idx}"]`)?.remove();
     if(e.name==='AbortError'){
-      if(!acc[idx])acc[idx]='[Response stopped]';
-      bodyEl.innerHTML=renderContent(acc[idx])+'<span style="color:var(--muted);font-size:12px"> [stopped]</span>';
+      if(ctrl.timeoutAborted){
+        acc[idx]=acc[idx]||'[Timed out — no output received]';
+        bodyEl.innerHTML=renderContent(acc[idx])+'<span style="color:var(--err);font-size:12px"> [timed out — partial output kept]</span>';
+      }else{
+        if(!acc[idx])acc[idx]='[Response stopped]';
+        bodyEl.innerHTML=renderContent(acc[idx])+'<span style="color:var(--muted);font-size:12px"> [stopped]</span>';
+      }
     }else{
       acc[idx]=`[Error: ${e.message}]`;
       bodyEl.innerHTML=`<span style="color:var(--err)">${esc(e.message)}</span>`;
@@ -5164,7 +5304,7 @@ async function streamOneGemini(ep,modelId,apiMsgs,idx,acc,bubble,ctrl,onModelDon
 // ═══════════════════════════════════════════
 // SYNTHESIS ENGINE
 // ═══════════════════════════════════════════
-async function runSynthesis(userTxt,modelResponses,apiMsgs,chat,messageIndex,rawBubble,retry,targetMessage){
+async function runSynthesis(userTxt,modelResponses,apiMsgs,chat,messageIndex,rawBubble,retry,targetMessage,cid){
   // Rebuild rawBubble in-place as synthesis view
   rawBubble.innerHTML='';
 
@@ -5258,7 +5398,7 @@ async function runSynthesis(userTxt,modelResponses,apiMsgs,chat,messageIndex,raw
     answerBody.appendChild(tryCur);
 
     const tryAbort=new AbortController();
-    S.aborts['synth']=tryAbort;
+    (S.aborts[cid]=S.aborts[cid]||{})['synth']=tryAbort;
 
     setStatus('busy',si===0
       ?'Synthesizing responses…'
@@ -5275,15 +5415,12 @@ async function runSynthesis(userTxt,modelResponses,apiMsgs,chat,messageIndex,raw
 
   // ── All models failed or user stopped — fall back to multi view, don't save bad state ──
   if(!usedSynthSel){
-    S.streaming=false;S.aborts={};$('send-btn').disabled=false;$('stop-btn').classList.remove('show');
     rawBubble.innerHTML='';
     if(!retry){
       // Save the raw model responses as a multi message so they aren't lost
       chat.messages.push({role:'multi',responses:modelResponses.map(r=>({...r})),versions:[{responses:modelResponses.map(r=>({...r}))}],activeVersion:0,ts:Date.now()});
-      renderMsgs();save();
     }
-    setStatus('err','Synthesis failed — all models returned errors. Raw responses shown.');
-    return;
+    return false;
   }
 
   // ── Store message — only on success ──
@@ -5308,12 +5445,7 @@ async function runSynthesis(userTxt,modelResponses,apiMsgs,chat,messageIndex,raw
       ts:Date.now()
     });
   }
-
-  S.streaming=false;S.aborts={};$('send-btn').disabled=false;$('stop-btn').classList.remove('show');
-  renderMsgs();
-  setStatus('ok','Ready',tokenRight());
-  if(S.activeChat)markChatDirty(S.activeChat);
-  save(true);
+  return true;
 }
 
 function appendSynthMsg(msg,streaming,messageIndex){
@@ -5432,7 +5564,8 @@ function appendSynthMsg(msg,streaming,messageIndex){
 async function streamOneSynth(ep,modelId,msgs,bodyEl,ctrl){
   if(!ep){bodyEl.querySelector('.cur')?.remove();bodyEl.innerHTML='<span style="color:var(--err)">No endpoint for synthesizer model</span>';return'';}
   const acc=[''];
-  const timer=setTimeout(()=>ctrl.abort(),(S.cfg.timeout||120)*1000);
+  let timer=setTimeout(()=>{ctrl.timeoutAborted=true;ctrl.abort();},(S.cfg.timeout||120)*1000);
+  const hardTimer=setTimeout(()=>{ctrl.timeoutAborted=true;ctrl.abort();},(S.cfg.timeout||120)*15000);
   try{
     if(isGeminiEndpoint(ep)){
       const contents=[];let systemText='';
@@ -5451,7 +5584,6 @@ async function streamOneSynth(ep,modelId,msgs,bodyEl,ctrl){
         ?`${base}/models/${encodeURIComponent(modelId)}:streamGenerateContent?alt=sse&key=${encodeURIComponent(ep.key)}`
         :`${base}/models/${encodeURIComponent(modelId)}:generateContent?key=${encodeURIComponent(ep.key)}`;
       const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(gemBody),signal:ctrl.signal});
-      clearTimeout(timer);
       if(!r.ok){const e=await r.text();throw new Error(`HTTP ${r.status}: ${e.slice(0,200)}`);}
       if(!useStream){
         const d=await r.json();
@@ -5463,6 +5595,7 @@ async function streamOneSynth(ep,modelId,msgs,bodyEl,ctrl){
           const{done,value}=await reader.read();
           if(done){const rem=buf.trim();if(rem.startsWith('data: ')){const raw=rem.slice(6).trim();if(raw&&raw!=='[DONE]'){try{const j=JSON.parse(raw);acc[0]+=j.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('')||'';if(j.usageMetadata&&j.usageMetadata.totalTokenCount)reqTok=j.usageMetadata.totalTokenCount;}catch{}}}break;}
           buf+=dec.decode(value,{stream:true});
+          clearTimeout(timer);timer=setTimeout(()=>{ctrl.timeoutAborted=true;ctrl.abort();},(S.cfg.timeout||120)*1000);
           const lines=buf.split('\n');buf=lines.pop();
           for(const line of lines){
             const t=line.trim();if(!t)continue;
@@ -5471,6 +5604,7 @@ async function streamOneSynth(ep,modelId,msgs,bodyEl,ctrl){
           const c=bodyEl.querySelector('.cur');bodyEl.innerHTML=renderContent(acc[0]);if(c)bodyEl.appendChild(c);
           maybeScroll();
         }
+        clearTimeout(timer);clearTimeout(hardTimer);
         if(reqTok)addTokens(reqTok);
       }
     }else{
@@ -5483,7 +5617,6 @@ async function streamOneSynth(ep,modelId,msgs,bodyEl,ctrl){
       const r=await fetch(fetchUrl,{
         method:'POST',headers:fetchHeaders,
         body:JSON.stringify(body),signal:ctrl.signal});
-      clearTimeout(timer);
       if(!r.ok){const e=await r.text();throw new Error(`HTTP ${r.status}: ${e.slice(0,200)}`);}
       if(S.cfg.stream===false){
         const d=await r.json();acc[0]=d.choices?.[0]?.message?.content||'';
@@ -5493,6 +5626,7 @@ async function streamOneSynth(ep,modelId,msgs,bodyEl,ctrl){
         while(true){
           const{done,value}=await reader.read();if(done)break;
           buf+=dec.decode(value,{stream:true});
+          clearTimeout(timer);timer=setTimeout(()=>{ctrl.timeoutAborted=true;ctrl.abort();},(S.cfg.timeout||120)*1000);
           const lines=buf.split('\n');buf=lines.pop();
           for(const line of lines){
             const t=line.trim();if(!t||t==='data: [DONE]'||!t.startsWith('data: '))continue;
@@ -5505,14 +5639,17 @@ async function streamOneSynth(ep,modelId,msgs,bodyEl,ctrl){
             }catch{}
           }
         }
+        clearTimeout(timer);clearTimeout(hardTimer);
         if(reqTok)addTokens(reqTok);
       }
     }
     bodyEl.querySelector('.cur')?.remove();bodyEl.innerHTML=renderContent(acc[0]);
   }catch(e){
-    clearTimeout(timer);bodyEl.querySelector('.cur')?.remove();
-    if(e.name==='AbortError')bodyEl.innerHTML=renderContent(acc[0])+'<span style="color:var(--muted);font-size:12px"> [stopped]</span>';
-    else bodyEl.innerHTML=`<span style="color:var(--err)">${esc(e.message)}</span>`;
+    clearTimeout(timer);clearTimeout(hardTimer);bodyEl.querySelector('.cur')?.remove();
+    if(e.name==='AbortError'){
+      if(ctrl.timeoutAborted)bodyEl.innerHTML=renderContent(acc[0])+'<span style="color:var(--err);font-size:12px"> [timed out — partial output kept]</span>';
+      else bodyEl.innerHTML=renderContent(acc[0])+'<span style="color:var(--muted);font-size:12px"> [stopped]</span>';
+    }else bodyEl.innerHTML=`<span style="color:var(--err)">${esc(e.message)}</span>`;
   }
   return acc[0];
 }
@@ -5998,7 +6135,7 @@ $('rc-btn').addEventListener('click',async()=>{
 $('new-chat-sb').addEventListener('click',()=>newChat());
 $('theme-toggle').addEventListener('click',()=>setTheme(currentTheme==='dark'?'light':'dark'));
 $('send-btn').addEventListener('click',send);
-$('stop-btn').addEventListener('click',()=>Object.values(S.aborts).forEach(c=>c.abort()));
+$('stop-btn').addEventListener('click',()=>{const o=S.aborts[S.activeChat];if(o)Object.values(o).forEach(c=>{try{c.abort();}catch{}});});
 $('user-inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
 $('user-inp').addEventListener('input',()=>autoResize($('user-inp')));
 
@@ -6040,6 +6177,21 @@ $('file-input').addEventListener('change',async function(){
   for(const f of files){
     const data=await new Promise((res,rej)=>{const reader=new FileReader();reader.onload=()=>res(reader.result);reader.onerror=rej;reader.readAsDataURL(f);});
     S.pendingFiles.push({name:f.name,type:f.type||'application/octet-stream',size:f.size,data});
+  }
+  renderPendingFiles();
+  autoResize($('user-inp'));
+});
+
+$('user-inp').addEventListener('paste',async e=>{
+  const items=e.clipboardData&&e.clipboardData.items?Array.from(e.clipboardData.items):[];
+  const imgItems=items.filter(it=>it.type&&it.type.startsWith('image/')&&it.getAsFile);
+  if(!imgItems.length)return;
+  e.preventDefault();
+  for(const it of imgItems){
+    const f=it.getAsFile();
+    if(!f)continue;
+    const data=await new Promise((res,rej)=>{const reader=new FileReader();reader.onload=()=>res(reader.result);reader.onerror=rej;reader.readAsDataURL(f);});
+    S.pendingFiles.push({name:f.name||('pasted-image-'+Date.now()+'.png'),type:f.type||'image/png',size:f.size,data});
   }
   renderPendingFiles();
   autoResize($('user-inp'));
@@ -7120,6 +7272,7 @@ function updateStatusBar(){
         folderLoaded=await readDir(dirHandle);
         if(folderLoaded){
           mergeFromLocalStorage();
+          applyDeletedTombstones();
           document.body.classList.remove('locked-pending');
           setStatus('ok','📁 Linked: '+dirHandle.name);
         }
@@ -7160,10 +7313,12 @@ function updateStatusBar(){
         const raw=localStorage.getItem('Convergent-state');
         if(raw){const d=JSON.parse(raw);applySnap(d);loaded=true;}
       }catch{}
+      applyDeletedTombstones();
     }
     if(!loaded)newChat();
   }
   if(Object.keys(S.chats).length&&(!S.activeChat||!S.chats[S.activeChat])){const ids=sortedIds(null);S.activeChat=ids[0]||null;}
+  applyChatModels(S.activeChat?S.chats[S.activeChat]:null);
 
   // Mobile: start with the drawer closed so the chat area is fully visible
   if(isMobileView())S.sbVisible=false;
