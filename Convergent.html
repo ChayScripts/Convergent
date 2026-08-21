@@ -165,6 +165,13 @@ mark.inchat-hl.current{background:rgba(251,146,60,.75);outline:2px solid rgba(25
 .sel-div{flex:none;width:1px;height:18px;background:rgba(255,255,255,.14);margin:0 2px}
 #quote-preview{display:none;padding:0 14px 8px}
 #quote-preview.show{display:block;margin-bottom:12px}
+#slash-preview{display:none;padding:14px 14px 0}
+#slash-preview.show{display:block}
+.slash-token{display:inline-flex;align-items:center;gap:8px;background:color-mix(in srgb,var(--acc) 12%,var(--surf2));border:1px solid color-mix(in srgb,var(--acc) 40%,var(--bdr));border-radius:9px;padding:6px 6px 6px 12px;font-size:14px;font-weight:500;color:var(--acc);cursor:default;animation:pillIn .18s cubic-bezier(.2,0,.15,1) both;max-width:100%}
+.slash-token .st-trig{font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slash-token .st-label{font-size:12px;color:var(--muted);font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slash-token-x{background:none;border:none;color:var(--muted);cursor:pointer;padding:0 5px;font-size:16px;line-height:1;border-radius:5px;transition:color .15s cubic-bezier(.4,0,.2,1),background .15s cubic-bezier(.4,0,.2,1);flex-shrink:0}
+.slash-token-x:hover{color:var(--err);background:rgba(248,113,113,.12)}
 .quote-block{position:relative;display:flex;align-items:flex-start;gap:10px;background:var(--surf2);border:1px solid var(--bdr2);border-left:3px solid var(--acc);border-radius:10px;padding:10px 12px;max-height:160px;overflow:auto}
 .quote-text{flex:1;min-width:0;font-size:13px;line-height:1.55;color:var(--txt2);white-space:pre-wrap;word-break:break-word}
 .quote-x{flex:none;background:none;border:none;color:var(--muted);font-size:16px;line-height:1;cursor:pointer;padding:0 2px}
@@ -1661,6 +1668,7 @@ input[type=text]:focus,input[type=password]:focus,input[type=number]:focus,selec
       </div>
       <div id="file-preview"></div>
       <div id="quote-preview"></div>
+      <div id="slash-preview"></div>
       <div id="inp-row">
         <button id="attach-btn" title="Attach file">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
@@ -5000,7 +5008,8 @@ async function send(){
   const quoted=(S.pendingQuote||'').trim();
   const txt=$('user-inp').value.trim();
   const hasFiles=S.pendingFiles.length>0;
-  if((!txt&&!hasFiles&&!quoted)||S.streamingChats[S.activeChat])return;
+  const slash=_pendingSlashCmd;
+  if((!txt&&!hasFiles&&!quoted&&!slash)||S.streamingChats[S.activeChat])return;
   if(S._edit)cancelEdit();
   if(!S.selModels.length){setStatus('err','No model selected');return;}
   const activeSelModels=getActiveSelModels();
@@ -5010,14 +5019,18 @@ async function send(){
   const files=hasFiles?[...S.pendingFiles]:undefined;
   const parts=[];
   if(quoted)parts.push(quoted.split('\n').map(l=>l.trim()?'> '+l:l).join('\n'));
-  if(txt)parts.push(txt);
+  if(slash){
+    const tpl=(slash.template||'').replace(/\s+$/,'');
+    parts.push(txt?tpl+' '+txt:tpl);
+  }else if(txt)parts.push(txt);
   const content=parts.join('\n\n')||'';
   chat.messages.push({role:'user',content,files,ts:Date.now()});
-  if(chat.messages.length===1){const label=txt||quoted||'(files)';chat.title=label.slice(0,44)+(label.length>44?'…':'');renderSB();}
+  if(chat.messages.length===1){const label=txt||slash?.trigger||quoted||'(files)';chat.title=label.slice(0,44)+(label.length>44?'…':'');renderSB();}
   appendUser(content,files,undefined,chat.messages.length-1,S.activeChat);
   $('user-inp').value='';autoResize($('user-inp'));$('empty').classList.add('hide');
   S.pendingFiles=[];renderPendingFiles();
   S.pendingQuote='';renderQuote();
+  _pendingSlashCmd=null;renderSlashToken();
   await runExchange(chat,content,files,activeSelModels);
 }
 function getActiveSelModels(){
@@ -6136,7 +6149,7 @@ $('new-chat-sb').addEventListener('click',()=>newChat());
 $('theme-toggle').addEventListener('click',()=>setTheme(currentTheme==='dark'?'light':'dark'));
 $('send-btn').addEventListener('click',send);
 $('stop-btn').addEventListener('click',()=>{const o=S.aborts[S.activeChat];if(o)Object.values(o).forEach(c=>{try{c.abort();}catch{}});});
-$('user-inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
+$('user-inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!_scOpen){e.preventDefault();send();}});
 $('user-inp').addEventListener('input',()=>autoResize($('user-inp')));
 
 // ── QUOTE (Ask about it) ──
@@ -6392,6 +6405,20 @@ let _scFocusIdx=-1;       // index of currently keyboard-focused list item
 let _scQueryStart=-1;     // textarea position where the current "/..." token starts (-1 = no active token)
 let _scFiltered=[];       // current filtered list
 let _scCreating=false;    // true when the inline create form is shown
+let _pendingSlashCmd=null; // command chosen from the popup — shown as a token pill, not raw text
+
+function renderSlashToken(){
+  const el=$('slash-preview');
+  if(!_pendingSlashCmd){el.classList.remove('show');el.innerHTML='';return;}
+  el.classList.add('show');
+  const c=_pendingSlashCmd;
+  el.innerHTML=`<span class="slash-token" title="${esc(c.label||c.trigger.replace(/^\//,''))}"><span class="st-trig">${esc(c.trigger)}</span><span class="st-label">${esc(c.label||'')}</span><button class="slash-token-x" aria-label="Remove command">×</button></span>`;
+  el.querySelector('.slash-token-x').addEventListener('click',()=>{
+    _pendingSlashCmd=null;
+    renderSlashToken();
+    $('user-inp').focus();
+  });
+}
 
 function _scHide(){
   _scOpen=false;_scFocusIdx=-1;_scQueryStart=-1;_scCreating=false;
@@ -6490,23 +6517,18 @@ function _scApply(cmd){
   // Find the end of the current /word token (next whitespace or end)
   let end=c;
   while(end<v.length&&!/\s/.test(v[end]))end++;
-  // Decision per spec: if the active token IS the only content (modulo whitespace),
-  // replace the entire input. Otherwise insert at cursor (replacing just the /word).
   const tokenStart=_scQueryStart>=0?_scQueryStart:0;
   const before=v.slice(0,tokenStart);
   const after=v.slice(end);
-  const inputIsJustToken=before.trim()===''&&after.trim()==='';
-  let newVal,newCursor;
-  if(inputIsJustToken){
-    newVal=cmd.template;
-    newCursor=cmd.template.length;
-  }else{
-    newVal=before+cmd.template+after;
-    newCursor=before.length+cmd.template.length;
-  }
+  const b=before.replace(/\s+$/,'');
+  const a=after.replace(/^\s+/,'');
+  // Remove the /word token; the command is represented by a token pill instead
+  const newVal=b&&a?b+' '+a:b+a;
   ta.value=newVal;
-  ta.setSelectionRange(newCursor,newCursor);
+  ta.setSelectionRange(newVal.length,newVal.length);
   autoResize(ta);
+  _pendingSlashCmd=cmd;
+  renderSlashToken();
   _scHide();
   ta.focus();
 }
@@ -6585,10 +6607,24 @@ $('user-inp').addEventListener('keydown',e=>{
   if(!_scOpen||_scCreating)return;
   if(e.key==='ArrowDown'){e.preventDefault();_scFocusIdx=Math.min(_scFocusIdx+1,_scFiltered.length-1);_scUpdateFocusUI();}
   else if(e.key==='ArrowUp'){e.preventDefault();_scFocusIdx=Math.max(_scFocusIdx-1,0);_scUpdateFocusUI();}
-  else if(e.key==='Enter'&&_scFiltered[_scFocusIdx]){e.preventDefault();_scApply(_scFiltered[_scFocusIdx]);}
+  else if(e.key==='Enter'&&!e.shiftKey&&_scFiltered[_scFocusIdx]){e.preventDefault();_scApply(_scFiltered[_scFocusIdx]);}
+  else if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();_scHide();}
   else if(e.key==='Escape'){e.preventDefault();_scHide();}
   else if(e.key==='Tab'&&_scFiltered[_scFocusIdx]){e.preventDefault();_scApply(_scFiltered[_scFocusIdx]);}
 },true);  // capture so we beat the existing Enter handler
+
+// Enter must be intercepted at the document level (capture phase, before the
+// event reaches #user-inp) so applying a slash command can stop the event and
+// prevent the textarea's send-on-Enter handler from firing — regardless of
+// listener ordering on the textarea itself.
+document.addEventListener('keydown',e=>{
+  if(e.target!==$('user-inp')||!_scOpen||_scCreating)return;
+  if(e.key==='Enter'&&!e.shiftKey){
+    e.preventDefault();e.stopPropagation();
+    if(_scFiltered[_scFocusIdx])_scApply(_scFiltered[_scFocusIdx]);
+    else _scHide();
+  }
+},true);
 
 // Close popup when clicking outside the input area
 document.addEventListener('mousedown',e=>{
