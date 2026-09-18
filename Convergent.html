@@ -2093,6 +2093,10 @@ input[type=text]:focus,input[type=password]:focus,input[type=number]:focus,selec
 <input type="file" id="imp-in" accept=".json" style="display:none">
 <input type="file" id="file-input" multiple style="display:none">
 
+<!-- CDN libs for file text extraction: PDF.js (PDF) + Mammoth (DOCX) -->
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+
 <script>
 // ═══════════════════════════════════════════
 // STATE
@@ -4893,15 +4897,15 @@ async function retryMessage(messageIndex){
   const apiMsgs=[];
   if(sys)apiMsgs.push({role:'system',content:sys});
   hist.forEach(m=>{
-    if(m.role==='user')apiMsgs.push({role:'user',content:m.files&&m.files.length?buildApiContent(m):m.content});
+    if(m.role==='user')apiMsgs.push({role:'user',content:m.files&&m.files.length?buildApiContent(m,visionCapableSelection()):m.content});
     else if(m.role==='assistant'){const v=normalizeVersions(m)[m.activeVersion||0]||normalizeVersions(m)[0];apiMsgs.push({role:'assistant',content:v?.content||m.content||''});}
     else if(m.role==='multi'){const v=normalizeVersions(m)[m.activeVersion||0]||normalizeVersions(m)[0];const first=v?.responses?.[0];if(first)apiMsgs.push({role:'assistant',content:first.content||''});}
   });
-  apiMsgs.push({role:'user',content:hasFiles?buildApiContent(userMsg):prompt});
+  apiMsgs.push({role:'user',content:hasFiles?buildApiContent(userMsg,visionCapableSelection()):prompt});
   const _wsCtxRetry=await runWebSearch(prompt);
   if(_wsCtxRetry){
     if(hasFiles){
-      apiMsgs[apiMsgs.length-1]={role:'user',content:buildApiContent({content:_wsCtxRetry+'\n\nUser query: '+prompt,files:userMsg.files})};
+      apiMsgs[apiMsgs.length-1]={role:'user',content:buildApiContent({content:_wsCtxRetry+'\n\nUser query: '+prompt,files:userMsg.files},visionCapableSelection())};
     }else{
       apiMsgs[apiMsgs.length-1]={role:'user',content:_wsCtxRetry+'\n\nUser query: '+prompt};
     }
@@ -4964,12 +4968,20 @@ function appendAI(responses,streaming,messageIndex,ts){
 // ═══════════════════════════════════════════
 // FILE UPLOAD — API content builder
 // ═══════════════════════════════════════════
-function buildApiContent(msg){
+function buildApiContent(msg,visionOk=false){
   if(!msg.files||!msg.files.length)return msg.content;
   const parts=[];
   if(msg.content)parts.push({type:'text',text:msg.content});
   msg.files.forEach(f=>{
-    if(f.type.startsWith('image/'))parts.push({type:'image_url',image_url:{url:f.data}});
+    if(f.type.startsWith('image/')){
+      // visionOk => send the image so a vision-capable model can read it.
+      // otherwise emit a clear placeholder (avoids the llama.cpp mmproj 500).
+      if(visionOk)parts.push({type:'image_url',image_url:{url:f.data}});
+      else parts.push({type:'text',text:`[Attached image: ${f.name} — this model cannot read images directly. Convert it to text/OCR and re-attach, or use a vision-capable endpoint.]`});
+    }
+    else if(f.extracted!==undefined&&f.extracted){
+      parts.push({type:'text',text:`[Attached file: ${f.name}]\n${f.extracted}`});
+    }
     else if(f.type.startsWith('text/')||f.name.match(/\.(md|txt|json|js|ts|py|rb|go|rs|java|cpp|c|h|yaml|yml|xml|html|css|scss|less|csv|sh|env|toml|ini|cfg|log)$/i)){
       const raw=atob(f.data.split(',')[1]||'');
       parts.push({type:'text',text:`[Attached file: ${f.name}]\n${raw}`});
@@ -5024,6 +5036,11 @@ async function send(){
     parts.push(txt?tpl+' '+txt:tpl);
   }else if(txt)parts.push(txt);
   const content=parts.join('\n\n')||'';
+  // Warn if an image is being sent to a selection that can't read it (avoids the
+  // llama.cpp "image input is not supported / provide the mmproj" 500).
+  if(files&&files.some(f=>f.type.startsWith('image/'))&&!visionCapableSelection()){
+    setStatus('warn','Note: the selected model(s) may not read images — a text note is sent instead. Enable "Supports images" on a vision-capable endpoint (e.g. llava/Qwen-VL) to send the actual image.');
+  }
   chat.messages.push({role:'user',content,files,ts:Date.now()});
   if(chat.messages.length===1){const label=txt||slash?.trigger||quoted||'(files)';chat.title=label.slice(0,44)+(label.length>44?'…':'');renderSB();}
   appendUser(content,files,undefined,chat.messages.length-1,S.activeChat);
@@ -5036,6 +5053,14 @@ async function send(){
 function getActiveSelModels(){
   return S.selModels.filter(s=>{const ep=S.endpoints.find(e=>e.id===s.endpointId);return!ep||ep.enabled!==false;});
 }
+// True only when EVERY currently-selected model's endpoint is marked vision-capable.
+// For multi-model messages the same prompt (incl. images) is sent to all models,
+// so an image must go out ONLY if no selected model would 500 on it.
+function visionCapableSelection(){
+  const sel=getActiveSelModels();
+  if(!sel.length)return false;
+  return sel.every(s=>{const ep=S.endpoints.find(e=>e.id===s.endpointId);return ep&&ep.vision===true;});
+}
 async function runExchange(chat,txt,files,activeSelModels){
   // Build system prompt: project context overrides global
   const projCtx=await buildProjectContext(chat.folderId);
@@ -5045,7 +5070,7 @@ async function runExchange(chat,txt,files,activeSelModels){
   const apiMsgs=[];
   if(sys)apiMsgs.push({role:'system',content:sys});
   hist.forEach(m=>{
-    if(m.role==='user')apiMsgs.push({role:'user',content:m.files&&m.files.length?buildApiContent(m):m.content});
+    if(m.role==='user')apiMsgs.push({role:'user',content:m.files&&m.files.length?buildApiContent(m,visionCapableSelection()):m.content});
     else if(m.role==='assistant'){const v=normalizeVersions(m)[m.activeVersion||0]||normalizeVersions(m)[0];apiMsgs.push({role:'assistant',content:v?.content||m.content||''});}
     else if(m.role==='multi'){const v=normalizeVersions(m)[m.activeVersion||0]||normalizeVersions(m)[0];const first=v?.responses?.[0];if(first)apiMsgs.push({role:'assistant',content:first.content||''});}
   });
@@ -5053,7 +5078,7 @@ async function runExchange(chat,txt,files,activeSelModels){
   const _finalTxt=_wsCtx?_wsCtx+'\n\nUser query: '+txt:txt;
   if(files&&files.length){
     const currentMsg=chat.messages[chat.messages.length-1];
-    apiMsgs.push({role:'user',content:buildApiContent({content:_finalTxt,files:currentMsg.files})});
+    apiMsgs.push({role:'user',content:buildApiContent({content:_finalTxt,files:currentMsg.files},visionCapableSelection())});
   }else{
     apiMsgs.push({role:'user',content:_finalTxt});
   }
@@ -5980,7 +6005,8 @@ function renderEpList(){
     </div>
     <div class="field" style="margin-bottom:10px"><label>Endpoint Name</label><input type="text" value="${esc(ep.name)}" placeholder="e.g. OpenAI, Ollama…" data-n="${i}"></div>
     <div class="field" style="margin-bottom:10px"><label>Base URL</label><input type="text" value="${esc(ep.url)}" placeholder="https://api.openai.com/v1" data-u="${i}"><div class="fhint" style="margin-top:4px">OpenAI-compatible · Gemini: https://generativelanguage.googleapis.com/v1beta</div></div>
-    <div class="field" style="margin-bottom:0"><label>API Key</label><input type="password" value="${esc(ep.key)}" placeholder="sk-… or AIza… (Gemini)" data-k="${i}"></div>`;
+    <div class="field" style="margin-bottom:0"><label>API Key</label><input type="password" value="${esc(ep.key)}" placeholder="sk-… or AIza… (Gemini)" data-k="${i}"></div>
+    <div class="f-opt" style="margin-top:10px"><label class="tog" title="${ep.vision?'Models can read images':'Models are text-only (images will be shown a note instead)'}"><input type="checkbox" data-vn="${i}" ${ep.vision?'checked':''}><div class="tog-t"></div></label><span style="margin-left:8px;font-size:13px">Supports images (vision)<span style="display:block;font-size:12px;color:var(--muted)">On: models like llava/Qwen-VL that can actually see images.</span></span></div>`;
     list.appendChild(c);
   });
   list.querySelectorAll('[data-d]').forEach(b=>b.addEventListener('click',()=>{S.endpoints.splice(parseInt(b.dataset.d),1);renderEpList();}));
@@ -5998,14 +6024,16 @@ function collectEps(){
   $('ep-list').querySelectorAll('.ep-card').forEach((c,i)=>{
     if(!S.endpoints[i])return;
     const tog=c.querySelector('[data-tog]');
+    const vn= c.querySelector('[data-vn]');
     S.endpoints[i]={...S.endpoints[i],
       name:c.querySelector('[data-n]')?.value||'',
       url:c.querySelector('[data-u]')?.value.trim()||'',
       key:c.querySelector('[data-k]')?.value.trim()||'',
-      enabled:tog?tog.checked:S.endpoints[i].enabled!==false};
+      enabled:tog?tog.checked:S.endpoints[i].enabled!==false,
+      vision:vn?vn.checked:!!S.endpoints[i].vision};
   });
 }
-$('add-ep-btn').addEventListener('click',()=>{S.endpoints.push({id:uid(),name:'Endpoint '+(S.endpoints.length+1),url:'',key:'',enabled:true});renderEpList();});
+$('add-ep-btn').addEventListener('click',()=>{S.endpoints.push({id:uid(),name:'Endpoint '+(S.endpoints.length+1),url:'',key:'',enabled:true,vision:false});renderEpList();});
 $('fetch-all-btn').addEventListener('click',()=>{collectEps();save();fetchAllModels();});
 $('settings-btn').addEventListener('click',()=>openSettings());
 
@@ -6086,7 +6114,7 @@ $('su-save').addEventListener('click',async()=>{
   const name=$('su-name').value.trim()||'Default';
   const url=$('su-url').value.trim(),key=$('su-key').value.trim();
   if(!url||!key){alert('Base URL and API Key are required.');return;}
-  if(!S.endpoints.length)S.endpoints.push({id:uid(),name,url,key,enabled:true});
+  if(!S.endpoints.length)S.endpoints.push({id:uid(),name,url,key,enabled:true,vision:false});
   else{S.endpoints[0].name=name;S.endpoints[0].url=url;S.endpoints[0].key=key;if(S.endpoints[0].enabled===undefined)S.endpoints[0].enabled=true;}
   if(suH)await linkFile(suH);
   $('setup-ov').classList.remove('open');save();fetchAllModels();
@@ -6182,6 +6210,52 @@ function removePendingFile(i){
   S.pendingFiles.splice(i,1);
   renderPendingFiles();
 }
+// Convert a data URL's payload into a binary ArrayBuffer (throws if not base64).
+function dataUrlToArrayBuffer(dataUrl){
+  const comma=dataUrl.indexOf(',');
+  if(comma<0)throw new Error('Bad data URL');
+  const b64=dataUrl.slice(comma+1);
+  const bin=atob(b64);
+  const bytes=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+  return bytes.buffer;
+}
+// Extract plain text from a PDF via pdf.js. Returns '' if unreadable.
+async function extractPdfText(dataUrl){
+  if(!window.pdfjsLib)return '';
+  try{
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+    const doc=await pdfjsLib.getDocument({data:dataUrlToArrayBuffer(dataUrl)}).promise;
+    let text='';
+    const maxPages=Math.min(doc.numPages,150);
+    for(let p=1;p<=maxPages;p++){
+      const page=await doc.getPage(p);
+      const tc=await page.getTextContent();
+      text+=tc.items.map(it=>it.str||'').join(' ')+'\n';
+    }
+    doc.destroy&&doc.destroy();
+    return text.trim();
+  }catch(e){console.warn('PDF extract failed:',e);return '';}
+}
+// Extract plain text from a DOCX via mammoth. Returns '' if unreadable.
+async function extractDocxText(dataUrl){
+  if(!window.mammoth)return '';
+  try{
+    const result=await mammoth.extractRawText({arrayBuffer:dataUrlToArrayBuffer(dataUrl)});
+    return (result.value||'').trim();
+  }catch(e){console.warn('DOCX extract failed:',e);return '';}
+}
+// For a pending file object, attempt text extraction for binary/document types
+// and store the result on f.extracted ('' = no text). Images/txt keep as-is.
+async function extractFileText(f){
+  const name=(f.name||'').toLowerCase();
+  try{
+    if(name.endsWith('.pdf')){const t=await extractPdfText(f.data);return t||'(could not extract text from this PDF)';}
+    else if(name.endsWith('.docx')){const t=await extractDocxText(f.data);return t||'(could not extract text from this DOCX)';}
+    else if(name.endsWith('.doc')){return '(legacy .doc is not readable — convert to .docx or .txt)';}
+  }catch(e){console.warn('extractFileText error',e);}
+  return '';
+}
 $('attach-btn').addEventListener('click',()=>$('file-input').click());
 $('file-input').addEventListener('change',async function(){
   const files=Array.from(this.files);
@@ -6189,7 +6263,10 @@ $('file-input').addEventListener('change',async function(){
   if(!files.length)return;
   for(const f of files){
     const data=await new Promise((res,rej)=>{const reader=new FileReader();reader.onload=()=>res(reader.result);reader.onerror=rej;reader.readAsDataURL(f);});
-    S.pendingFiles.push({name:f.name,type:f.type||'application/octet-stream',size:f.size,data});
+    const pf={name:f.name,type:f.type||'application/octet-stream',size:f.size,data};
+    // Async-extract text so text-part models can read the document contents.
+    pf.extracted=await extractFileText(pf).catch(()=>'');
+    S.pendingFiles.push(pf);
   }
   renderPendingFiles();
   autoResize($('user-inp'));
