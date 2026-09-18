@@ -6224,19 +6224,28 @@ function dataUrlToArrayBuffer(dataUrl){
 let _pdfWorkerUrl=null;
 async function ensurePdfWorker(){
   if(_pdfWorkerUrl||!window.pdfjsLib)return;
-  try{
-    // Load the worker as a same-origin Blob so cross-origin classic-worker
-    // restrictions (which block the jsdelivr URL on hosted/origin pages like
-    // Cloudflare Pages, but not on file://) don't break PDF extraction.
-    const res=await fetch('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js');
-    if(!res.ok)throw new Error('worker fetch failed '+res.status);
-    const text=await res.text();
-    _pdfWorkerUrl=URL.createObjectURL(new Blob([text],{type:'text/javascript'}));
-    pdfjsLib.GlobalWorkerOptions.workerSrc=_pdfWorkerUrl;
-  }catch(e){
-    // Fall back to the direct URL; on file:// this still works.
-    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  // Cross-origin classic workers are blocked on http(s) (but allowed on file://).
+  // So we fetch the worker script from a CDN and wrap it in a same-origin Blob
+  // URL — browsers always allow same-origin workers, no extra files needed.
+  const urls=[
+    'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js',
+    'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+  ];
+  for(const u of urls){
+    try{
+      const res=await fetch(u);
+      if(!res.ok)continue;
+      const text=await res.text();
+      const blob=new Blob([text],{type:'text/javascript'});
+      _pdfWorkerUrl=URL.createObjectURL(blob);
+      pdfjsLib.GlobalWorkerOptions.workerSrc=_pdfWorkerUrl;
+      return;
+    }catch(e){/* try next CDN */}
   }
+  // Last resort: direct URL (works on file:// only, since browsers block
+  // cross-origin workers on hosted origins).
+  pdfjsLib.GlobalWorkerOptions.workerSrc=urls[0];
 }
 async function extractPdfText(dataUrl){
   if(!window.pdfjsLib)return '';
