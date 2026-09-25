@@ -220,7 +220,8 @@ mark.inchat-hl.current{background:rgba(251,146,60,.75);outline:2px solid rgba(25
 .mc-item:nth-child(4n+4){border-left-color:var(--m3)}
 .mc-item:hover{background:var(--surf2)}
 .mc-item.selected{border-color:color-mix(in srgb,var(--acc) 30%,var(--bdr));background:color-mix(in srgb,var(--acc) 9%,var(--surf2))}
-.mc-cb{width:17px;height:17px;border:1.5px solid var(--bdr2);border-radius:4px;background:var(--bg);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background .15s cubic-bezier(.4,0,.2,1),border-color .15s cubic-bezier(.4,0,.2,1)}
+.mc-cb{width:22px;height:22px;border:1.5px solid var(--bdr2);border-radius:6px;background:var(--bg);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background .15s cubic-bezier(.4,0,.2,1),border-color .15s cubic-bezier(.4,0,.2,1);cursor:pointer}
+.mc-cb:hover{border-color:var(--acc)}
 .mc-item.selected .mc-cb{background:var(--acc);border-color:var(--acc)}
 .mc-cb-check{display:none;width:9px;height:9px}
 .mc-item.selected .mc-cb-check{display:block}
@@ -6806,11 +6807,22 @@ function _mcRender(){
         <div class="mc-title">${esc(chat.title||'New chat')}</div>
         <div class="mc-meta">${[dateSpan,msgSpan,projTag].filter(Boolean).join('')}</div>
       </div>`;
-    item.addEventListener('click',()=>{
+    const cb=item.querySelector('.mc-cb');
+    const toggleSelect=()=>{
       if(_mcSelected.has(cid))_mcSelected.delete(cid);
       else _mcSelected.add(cid);
       _mcUpdateToolbar();
       item.classList.toggle('selected',_mcSelected.has(cid));
+    };
+    cb.addEventListener('click',e=>{
+      e.stopPropagation();
+      toggleSelect();
+    });
+    item.addEventListener('click',()=>{
+      closeManageChats();
+      S.activeChat=cid;S.activeProject=null;S._edit=null;
+      if(S.chats[cid])applyChatModels(S.chats[cid]);
+      renderModelBar();renderSB();renderMsgs();
     });
     list.insertBefore(item,$('mc-empty'));
   });
