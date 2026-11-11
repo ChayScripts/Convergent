@@ -169,7 +169,7 @@ The local proxy runs on your machine and forwards the requests for you. The brow
 
 When you want to support a new CORS-restricted API, do two things:
 
-- In the HTML file, add the API’s hostname to the `isProxyEndpoint` function so requests are sent through the proxy.
+- In the HTML file, add the API’s hostname to the `isNvidiaEndpoint(ep)` function so requests are sent through the proxy.
 - In `convergent-proxy.js`, add the same hostname to the `ALLOWED_HOSTS` list so the proxy is allowed to forward to it.
 
 > This is only needed for APIs that block browser CORS requests. Most other providers work without the proxy.
