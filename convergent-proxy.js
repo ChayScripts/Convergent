@@ -40,6 +40,8 @@ const ALLOWED_HOSTS = [
   'api.together.xyz',
   'api.mistral.ai',
   'api.anthropic.com',
+  'api.cloudflare.com',
+  'api.indierouter.ai',
   // Add more as needed
 ];
 
