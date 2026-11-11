@@ -149,15 +149,30 @@ For ollama running from remote server, run below commands on admin powershell co
 
 ---
 
-# Accessing Nvidia Models
-To access nvidia models, install nodejs in your system and run `node convergent-proxy.js` command and leave the terminal running. If you close this terminal Nvidia models wont work. In the html, settings/Endpoints option, enter `http://localhost:3030` url and test proxy connection. Enter Nvidia API URL, key and access the models.
+# Accessing CORS-restricted models
+Some APIs (for example NVIDIA and IndieRouter) do not allow requests from a website in the browser. They block them with a CORS error.
 
-## Why the proxy is needed
-NVIDIA’s APIs expect requests to come from controlled environments (server, authenticated clients) and often reject raw fetch calls from frontend HTML apps.
+To use these APIs:
 
-The local proxy script runs on your machine (e.g., Node.js server) and forwards requests with proper headers, API‑key handling, and sometimes rewritten origin, so NVIDIA’s backend sees them as allowed.
+1. Install Node.js, then run:
+   ```bash
+   node convergent-proxy.js
+   ```
+   Leave the terminal open. If you close it, the models will stop working.
 
-> *This is only needed when accessing Nvidia models.*
+2. In the HTML file, open Settings → Endpoints. Enter `http://localhost:3030` as the proxy URL and click “Test Proxy Connection”.
+
+3. Add the API’s base URL and your key as usual, then fetch models or start chatting.
+
+## How it works
+The local proxy runs on your machine and forwards the requests for you. The browser talks only to the proxy (which allows CORS), and the proxy talks to the real API.
+
+When you want to support a new CORS-restricted API, do two things:
+
+- In the HTML file, add the API’s hostname to the `isProxyEndpoint` function so requests are sent through the proxy.
+- In `convergent-proxy.js`, add the same hostname to the `ALLOWED_HOSTS` list so the proxy is allowed to forward to it.
+
+> This is only needed for APIs that block browser CORS requests. Most other providers work without the proxy.
 
 # Supported Web Search Providers
 
