@@ -3628,8 +3628,9 @@ document.getElementById('max-view-body').addEventListener('click',async e=>{
 function isGeminiEndpoint(ep){
   return /generativelanguage\.googleapis\.com/i.test(ep.url||'');
 }
+
 function isNvidiaEndpoint(ep){
-  return /integrate\.api\.nvidia\.com/i.test(ep.url||'');
+  return /integrate\.api\.nvidia\.com|api\.indierouter\.ai/i.test(ep.url||'');
 }
 async function fetchOneEpGemini(ep){
   try{
